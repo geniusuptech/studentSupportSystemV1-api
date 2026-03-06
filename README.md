@@ -38,26 +38,8 @@ This API provides complete backend services for the Student Wellness Dashboard, 
    npm install
    ```
 
-2. **Database Setup**
-   ```bash
-   # 1. Install SQL Server if not already installed
-   # 2. Run the database schema script
-   sqlcmd -S localhost -i database/student_wellness_database.sql
 
-   # 3. Populate with student data
-   sqlcmd -S localhost -i database/remaining_students_data.sql
-   ```
-
-3. **Environment Configuration**
-   ```bash
-   # Copy environment template
-   cp .env.example .env
-
-   # Edit .env with your database credentials
-   # Update DB_PASSWORD with your SQL Server password
-   ```
-
-4. **Start the Server**
+2. **Start the Server**
    ```bash
    # Development mode with auto-reload
    npm run dev
@@ -67,7 +49,7 @@ This API provides complete backend services for the Student Wellness Dashboard, 
    npm start
    ```
 
-5. **Verify Installation**
+3. **Verify Installation**
    ```bash
    # Check API health
    curl http://localhost:3001/api/health
@@ -175,31 +157,7 @@ GET /api/partners/available?specialization=Mathematics
 - **SupportLogs** - Session logs
 - **StudentProfiles** - Student profile data
 
-### Sample Data Included
-- 🎓 4 Universities (UCT, Wits, UJ, UKZN)
-- 📚 6 Academic Programs
-- 👨‍🎓 130 Students (62 Safe, 45 At Risk, 23 Critical)
-- 🤝 9 Partners/Service Providers
-- 📝 25+ Sample Support Requests
-- 📊 Complete analytics and reporting data
-
 ## 🔧 Configuration
-
-### Environment Variables
-
-```env
-# Server Configuration
-NODE_ENV=development
-PORT=3001
-FRONTEND_URL=http://localhost:3000
-
-# Database Configuration
-DB_SERVER=localhost
-DB_NAME=StudentWellnessDB
-DB_USER=sa
-DB_PASSWORD=your_password
-DB_PORT=1433
-```
 
 ### Database Connection
 
@@ -319,29 +277,6 @@ COPY package*.json ./
 RUN npm ci --only=production
 COPY dist ./dist
 CMD ["node", "dist/index.js"]
-```
-
-## 🤝 Integration
-
-### Frontend Integration
-```typescript
-// Example API service
-class ApiService {
-  baseUrl = 'http://localhost:3001/api';
-
-  async getStudents() {
-    const response = await fetch(`${this.baseUrl}/students`);
-    return response.json();
-  }
-
-  async updateStudentRisk(id: number, riskLevel: string) {
-    return fetch(`${this.baseUrl}/students/${id}/risk`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ riskLevel })
-    });
-  }
-}
 ```
 
 ## 📚 Documentation
