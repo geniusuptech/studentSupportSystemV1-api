@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('ts-node/register/transpile-only');
 const db = require('./src/config/database.ts').default;
 
 (async () => {

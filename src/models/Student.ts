@@ -1,3 +1,12 @@
+export interface StudentAssessmentRecord {
+  AssessmentRecordID: number;
+  Date: string;
+  Subject: string;
+  Assessment: string;
+  Grade: number;
+  Status: string;
+}
+
 export interface Student {
   StudentID: number;
   StudentName: string;
@@ -15,6 +24,12 @@ export interface Student {
   EmergencyPhone?: string;
   DateEnrolled: string;
   LastLoginDate?: string;
+  Module1?: string;
+  Module2?: string;
+  Module3?: string;
+  Module4?: string;
+  Modules?: string[];
+  AssessmentHistory?: StudentAssessmentRecord[];
   IsActive: boolean;
   CreatedAt: string;
   UpdatedAt: string;

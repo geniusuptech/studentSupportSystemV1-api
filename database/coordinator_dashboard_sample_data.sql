@@ -12,7 +12,7 @@
 -- - Risk Distribution: Safe, At Risk, Critical
 -- ============================================================================
 
-USE StudentWellnessDB;
+USE StudentWellness;
 GO
 
 -- Clear existing data (optional - uncomment if needed)

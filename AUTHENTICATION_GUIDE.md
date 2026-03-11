@@ -49,7 +49,7 @@ The Student Wellness Dashboard API now includes comprehensive authentication fun
 ```json
 {
   "email": "admin@studentwellness.com",
-  "password": "Password123!"
+  "password": "YOUR_GENERATED_PASSWORD"
 }
 ```
 
@@ -106,7 +106,7 @@ Authorization: Bearer YOUR_JWT_TOKEN_HERE
 **Request Body:**
 ```json
 {
-  "currentPassword": "Password123!",
+  "currentPassword": "YOUR_CURRENT_PASSWORD",
   "newPassword": "NewSecurePassword456",
   "confirmNewPassword": "NewSecurePassword456"
 }
@@ -125,15 +125,26 @@ Authorization: Bearer YOUR_JWT_TOKEN_HERE
 
 ## Sample Test Users
 
-The database script creates these sample users for testing:
+Use generated credentials from setup scripts, not static default passwords.
+
+Password formats:
+- `Student`: `GUPS{First2Letters}{SurnameInitial}{NNN}`
+- `Coordinator`: `GUPC{First2Letters}{SurnameInitial}{NNN}`
+- `Partner`: `GUPP{First2Letters}{SurnameInitial}{NNN}`
+- `Admin`: `GUPA{First2Letters}{SurnameInitial}{NNN}`
+
+Generate/reset Users-table credentials:
+```bash
+npm run setup:users-auth
+```
 
 | Email | Password | User Type | Description |
 |-------|----------|-----------|-------------|
-| admin@studentwellness.com | Password123! | Admin | System Administrator |
-| sarah.mitchell@uct.ac.za | Password123! | Coordinator | UCT Coordinator |
-| david.johnson@wits.ac.za | Password123! | Coordinator | Wits Coordinator |
-| lerato.khumalo@students.uct.ac.za | Password123! | Student | Sample Student |
-| michael.chen@uct.ac.za | Password123! | Partner | Sample Partner |
+| admin@studentwellness.com | Generated (`GUPA...`) | Admin | System Administrator |
+| sarah.mitchell@uct.ac.za | Generated (`GUPC...`) | Coordinator | UCT Coordinator |
+| david.johnson@wits.ac.za | Generated (`GUPC...`) | Coordinator | Wits Coordinator |
+| lerato.khumalo@students.uct.ac.za | Generated (`GUPS...`) | Student | Sample Student |
+| michael.chen@uct.ac.za | Generated (`GUPP...`) | Partner | Sample Partner |
 
 **⚠️ IMPORTANT: Change all default passwords before production deployment!**
 
@@ -159,7 +170,7 @@ curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@studentwellness.com",
-    "password": "Password123!"
+    "password": "YOUR_GENERATED_PASSWORD"
   }'
 ```
 
@@ -245,6 +256,7 @@ Visit `http://localhost:3001/api-docs` to see the interactive API documentation 
    - `partners_table_script.sql` 
    - `users_table_script.sql`
    - `coordinator_dashboard_sample_data.sql`
+   - `npm run setup:users-auth`
 
 2. **Test the authentication flow** using the sample credentials
 

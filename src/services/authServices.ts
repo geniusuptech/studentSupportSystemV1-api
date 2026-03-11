@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { authRepository } from '../repository/authRepository';
 import { User, LoginRequest, LoginResponse, RegisterRequest, AuthTokenPayload } from '../models/User';
+import { getJwtExpiresIn, getJwtSecret } from '../config/security';
 
 export class AuthService {
     
@@ -49,13 +50,13 @@ export class AuthService {
                 partnerID: user.PartnerID
             };
             
-            const jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-            const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
+            const jwtSecret = getJwtSecret();
+            const expiresIn = getJwtExpiresIn();
             
             const token = jwt.sign(tokenPayload, jwtSecret as string, { expiresIn: expiresIn as any });
             
             // Update last login date
-            await authRepository.updateLastLoginDate(user.UserID);
+            await authRepository.updateLastLoginAt(user.UserID, user.UserType);
             
             return {
                 success: true,
@@ -124,8 +125,8 @@ export class AuthService {
                 partnerID: newUser.PartnerID
             };
             
-            const jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-            const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
+            const jwtSecret = getJwtSecret();
+            const expiresIn = getJwtExpiresIn();
             
             const token = jwt.sign(tokenPayload, jwtSecret as string, { expiresIn: expiresIn as any });
             
@@ -253,8 +254,7 @@ export class AuthService {
     
     validateToken(token: string): AuthTokenPayload | null {
         try {
-            const jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-            return jwt.verify(token, jwtSecret) as AuthTokenPayload;
+            return jwt.verify(token, getJwtSecret()) as AuthTokenPayload;
         } catch (error) {
             console.error('Token validation error:', error);
             return null;

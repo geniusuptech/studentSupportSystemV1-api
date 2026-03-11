@@ -39,7 +39,7 @@ export class AuthRepository {
         }
     }
     
-    async getUserById(userId: number): Promise<User | null> {
+    async getUserById(userId: number, userType?: string): Promise<User | null> {
         try {
             const query = `
                 SELECT 
@@ -127,7 +127,7 @@ export class AuthRepository {
         }
     }
     
-    async updateLastLoginDate(userId: number): Promise<void> {
+    async updateLastLoginAt(userId: number, userType?: string): Promise<void> {
         try {
             const query = `
                 UPDATE Users 

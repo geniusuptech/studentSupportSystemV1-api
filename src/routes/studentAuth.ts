@@ -53,7 +53,7 @@ const handleValidationErrors = (req: Request, res: Response, next: NextFunction)
  *               password:
  *                 type: string
  *                 format: password
- *                 example: Password123!
+ *                 example: GUPSLEK001
  *     responses:
  *       200:
  *         description: Login successful

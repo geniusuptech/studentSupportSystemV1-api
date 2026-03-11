@@ -10,13 +10,13 @@
 -- ============================================================================
 
 -- Create Database
-IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'StudentWellnessDB')
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'StudentWellness')
 BEGIN
-    CREATE DATABASE StudentWellnessDB;
+    CREATE DATABASE StudentWellness;
 END
 GO
 
-USE StudentWellnessDB;
+USE StudentWellness;
 GO
 
 -- ============================================================================
@@ -122,6 +122,12 @@ CREATE TABLE Students (
     ContactPhone NVARCHAR(20),
     EmergencyContact NVARCHAR(100),
     EmergencyPhone NVARCHAR(20),
+    -- Module columns for filtering (4 modules per student)
+    Module1 NVARCHAR(100) NULL,
+    Module2 NVARCHAR(100) NULL,
+    Module3 NVARCHAR(100) NULL,
+    Module4 NVARCHAR(100) NULL,
+    
     DateEnrolled DATE NOT NULL,
     LastLoginDate DATETIME2,
     IsActive BIT NOT NULL DEFAULT 1,
@@ -456,7 +462,7 @@ END;
 PRINT '============================================================================';
 PRINT 'SUCCESS: Student Wellness Dashboard Database Schema Created Successfully!';
 PRINT '';
-PRINT 'Database: StudentWellnessDB';
+PRINT 'Database: StudentWellness';
 PRINT 'Tables Created: 8';
 PRINT 'Views Created: 3';
 PRINT 'Stored Procedures: 2';
@@ -480,7 +486,7 @@ SELECT
     TABLE_NAME,
     TABLE_TYPE
 FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_CATALOG = 'StudentWellnessDB'
+WHERE TABLE_CATALOG = 'StudentWellness'
 ORDER BY TABLE_NAME;
 
 -- Check initial data

@@ -46,7 +46,7 @@ export interface RegisterRequest {
     confirmPassword: string;
     firstName: string;
     lastName: string;
-    userType: 'Student' | 'Coordinator' | 'Partner';
+    userType: 'Student' | 'Coordinator' | 'Partner' | 'Admin';
     studentID?: number;
     coordinatorID?: number;
     partnerID?: number;

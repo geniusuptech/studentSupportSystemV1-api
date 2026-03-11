@@ -1,9 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import databaseService from '../config/database';
+import { getJwtExpiresIn, getJwtSecret } from '../config/security';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_SECRET = getJwtSecret();
+const JWT_EXPIRES_IN = getJwtExpiresIn();
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_TIME_MINUTES = 15;
 
@@ -188,7 +189,7 @@ export class StudentAuthService {
     };
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, {
-      expiresIn: '24h'
+      expiresIn: JWT_EXPIRES_IN
     } as jwt.SignOptions);
 
     return {

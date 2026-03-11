@@ -1,12 +1,15 @@
 require('dotenv').config();
+require('ts-node/register/transpile-only');
 const db = require('./src/config/database.ts').default;
 
 (async () => {
   await db.connect();
-  const interventions = await db.executeQuery(
-    "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.INTERVENTIONS WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME"
-  );
+  const interventions = await db.executeQuery(`
+    SELECT *
+    FROM Interventions
+    ORDER BY CreatedAt DESC
+  `);
   console.log('Interventions found:', interventions.length);
-  interventions.forEach(t => console.log('  -', t.TABLE_NAME));
+  interventions.forEach(i => console.log('  -', i.InterventionID, i.InterventionType, i.Status));
   process.exit(0);
 })();

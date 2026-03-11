@@ -7,18 +7,21 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
 import databaseService from './config/database';
+import { getJwtSecret } from './config/security';
 import { setupSwagger } from './config/swagger';
 import studentsRoutes from './routes/students';
 import studentAuthRoutes from './routes/studentAuth';
 import supportRequestsRoutes from './routes/support-requests';
 import partnersRoutes from './routes/partners';
 import authRoutes from './routes/auth';
+import coordinatorsRoutes from './routes/coordinators';
 import dashboardRoutes from './routes/dashboard';
 import universitiesRoutes from './routes/universities';
 import programsRoutes from './routes/programs';
 import riskLevelsRoutes from './routes/riskLevels';
 import interventionsRoutes from './routes/interventions';
 import reportsRoutes from './routes/reports';
+import modulesRoutes from './routes/modules';
 
 // Load environment variables
 dotenv.config();
@@ -32,10 +35,12 @@ interface CustomError extends Error {
 class StudentWellnessServer {
   private app: Express;
   private port: number;
+  private enableModulesApi: boolean;
 
   constructor() {
     this.app = express();
     this.port = parseInt(process.env.PORT || '3001', 10);
+    this.enableModulesApi = process.env.ENABLE_MODULES_API === 'true';
     this.initializeMiddlewares();
     this.initializeRoutes();
     this.initializeErrorHandling();
@@ -62,12 +67,26 @@ class StudentWellnessServer {
     this.app.use(morgan('combined'));
 
     // Rate limiting
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    const isProduction = nodeEnv === 'production';
+    const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || `${15 * 60 * 1000}`, 10);
+    const rateLimitMax = parseInt(
+      process.env.RATE_LIMIT_MAX || process.env.RATE_LIMIT_MAX_REQUESTS || (isProduction ? '1000' : '10000'),
+      10
+    );
+    const localhostIps = new Set(['::1', '127.0.0.1', '::ffff:127.0.0.1']);
+
     const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // limit each IP to 100 requests per windowMs
-      message: 'Too many requests from this IP, please try again later.',
+      windowMs: rateLimitWindowMs,
+      max: rateLimitMax,
+      message: {
+        error: 'Too Many Requests',
+        message: 'Too many requests from this IP, please try again later.',
+      },
       standardHeaders: true,
       legacyHeaders: false,
+      // Keep health checks responsive and avoid local development lockouts.
+      skip: (req: Request) => req.path === '/api/health' || (!isProduction && localhostIps.has(req.ip || '')),
     });
     this.app.use(limiter);
 
@@ -185,6 +204,7 @@ class StudentWellnessServer {
 
     // API routes
     this.app.use('/api/auth', authRoutes);
+    this.app.use('/api/coordinators', coordinatorsRoutes);
     this.app.use('/api/students/auth', studentAuthRoutes);
     this.app.use('/api/students', studentsRoutes);
     this.app.use('/api/support-requests', supportRequestsRoutes);
@@ -195,17 +215,26 @@ class StudentWellnessServer {
     this.app.use('/api/risk-levels', riskLevelsRoutes);
     this.app.use('/api/interventions', interventionsRoutes);
     this.app.use('/api/reports', reportsRoutes);
+    if (this.enableModulesApi) {
+      this.app.use('/api/modules', modulesRoutes);
+    }
 
-    // Root endpoint
+    // Root endpoint - send users directly to Swagger UI.
     this.app.get('/', (req: Request, res: Response) => {
+      res.redirect('/api-docs');
+    });
+
+    // API info endpoint
+    this.app.get('/api', (req: Request, res: Response) => {
       res.json({
         message: 'Student Wellness Dashboard API',
         version: '1.0.0',
-        documentation: '/api/health',
+        documentation: '/api-docs',
         endpoints: {
           health: '/api/health',
           databaseTest: '/api/test-db',
           authentication: '/api/auth',
+          coordinators: '/api/coordinators',
           students: '/api/students',
           supportRequests: '/api/support-requests',
           partners: '/api/partners',
@@ -214,7 +243,8 @@ class StudentWellnessServer {
           programs: '/api/programs',
           riskLevels: '/api/risk-levels',
           interventions: '/api/interventions',
-          reports: '/api/reports'
+          reports: '/api/reports',
+          ...(this.enableModulesApi && { modules: '/api/modules' })
         }
       });
     });
@@ -227,6 +257,9 @@ class StudentWellnessServer {
         availableRoutes: [
           '/api/health',
           '/api/test-db',
+          '/api/auth',
+          '/api/coordinators',
+          '/api/students/auth',
           '/api/students',
           '/api/support-requests',
           '/api/partners',
@@ -235,7 +268,8 @@ class StudentWellnessServer {
           '/api/programs',
           '/api/risk-levels',
           '/api/interventions',
-          '/api/reports'
+          '/api/reports',
+          ...(this.enableModulesApi ? ['/api/modules'] : [])
         ]
       });
     });
@@ -294,32 +328,39 @@ class StudentWellnessServer {
 
   public async start(): Promise<void> {
     try {
-      // Attempt to connect to database (optional for development)
+      // Validate required security configuration early.
+      getJwtSecret();
+
+      const allowStartWithoutDb =
+        process.env.ALLOW_START_WITHOUT_DB === 'true' ||
+        (process.env.NODE_ENV || 'development') !== 'production';
+
       try {
         await databaseService.connect();
-        console.log('✅ Database connection successful');
+        console.log('Database connection successful');
       } catch (dbError) {
-        console.warn('⚠️  Database connection failed:', (dbError as Error).message);
-        console.log('🔄 Server will start without database connection');
-        console.log('💡 You can test database connectivity at /api/test-db');
+        if (!allowStartWithoutDb) {
+          throw dbError;
+        }
+        console.warn('Database connection failed:', (dbError as Error).message);
+        console.log('Server will start without database connection');
+        console.log('You can test database connectivity at /api/test-db');
       }
 
-      // Start server regardless of database connection status
       this.app.listen(this.port, () => {
         console.log(`
-🚀 Student Wellness Dashboard API Server Started
-📊 Environment: ${process.env.NODE_ENV || 'development'}
-🌐 Server running on port ${this.port}
-🔗 Health check: http://localhost:${this.port}/api/health
-🗃️  Database test: http://localhost:${this.port}/api/test-db
-📖 API Documentation: http://localhost:${this.port}/api-docs
-📚 API Endpoints:
-   • Students: http://localhost:${this.port}/api/students
-   • Support Requests: http://localhost:${this.port}/api/support-requests  
-   • Partners: http://localhost:${this.port}/api/partners
+Student Wellness Dashboard API Server Started
+Environment: ${process.env.NODE_ENV || 'development'}
+Server running on port ${this.port}
+Health check: http://localhost:${this.port}/api/health
+Database test: http://localhost:${this.port}/api/test-db
+API Documentation: http://localhost:${this.port}/api-docs
+API Endpoints:
+  - Students: http://localhost:${this.port}/api/students
+  - Support Requests: http://localhost:${this.port}/api/support-requests
+  - Partners: http://localhost:${this.port}/api/partners
         `);
       });
-
     } catch (error) {
       console.error('Failed to start server:', error);
       process.exit(1);
@@ -343,3 +384,4 @@ if (require.main === module) {
 }
 
 export default server;
+

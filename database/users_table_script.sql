@@ -5,7 +5,7 @@
 -- Student Wellness Dashboard system.
 -- ============================================================================
 
-USE StudentWellnessDB;
+USE StudentWellness;
 GO
 
 -- ============================================================================
@@ -91,9 +91,9 @@ INSERT INTO Coordinators (CoordinatorName, ContactEmail, ContactPhone, Universit
 -- 5. INSERT SAMPLE USERS FOR AUTHENTICATION
 -- ============================================================================
 
--- Sample password is 'Password123!' - hash generated with bcrypt (12 rounds)
--- You should change these passwords in production
-DECLARE @SamplePasswordHash NVARCHAR(255) = '$2b$12$LQv3c1yqBWVHxkd0LQ4YNu3mQJn1fJ7QJ3J2X4Z9k1m2n3o4p5q6r7s';
+-- Temporary bootstrap password is 'TempPass!123' (bcrypt 12 rounds)
+-- Immediately run setup-users-auth.ts to generate unique role-based passwords.
+DECLARE @SamplePasswordHash NVARCHAR(255) = '$2a$12$W4G5mbzQHrLENhqAusil8eYUOOtT5ZUOa/lTgDR9hokDWFDBLT2aS';
 
 INSERT INTO Users (Email, PasswordHash, UserType, FirstName, LastName, CoordinatorID, IsActive, IsEmailVerified) VALUES
 ('sarah.mitchell@uct.ac.za', @SamplePasswordHash, 'Coordinator', 'Sarah', 'Mitchell', 1, 1, 1),
@@ -189,12 +189,12 @@ FROM Coordinators c
 ORDER BY c.CoordinatorName;
 
 PRINT ''
-PRINT 'Sample users created with the following credentials:'
-PRINT 'Email: admin@studentwellness.com | Password: Password123! | Type: Admin'
-PRINT 'Email: sarah.mitchell@uct.ac.za | Password: Password123! | Type: Coordinator'
-PRINT 'Email: lerato.khumalo@students.uct.ac.za | Password: Password123! | Type: Student'
+PRINT 'Sample users created with temporary credentials.'
+PRINT 'Next step: run `npm run setup:users-auth` to generate unique passwords per role.'
+PRINT 'Formats: Student=GUPS..., Coordinator=GUPC..., Partner=GUPP..., Admin=GUPA...'
 PRINT ''
-PRINT 'IMPORTANT: Change all default passwords before deploying to production!'
+PRINT 'IMPORTANT: Do not use temporary passwords in production.'
 PRINT 'Users table ready for authentication endpoints.'
 
 GO
+

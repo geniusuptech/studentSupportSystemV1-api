@@ -1,5 +1,5 @@
 import databaseService from '../config/database';
-import { Student } from '../models/Student';
+import { Student, StudentAssessmentRecord } from '../models/Student';
 
 export class StudentsRepository {
     async getAllStudents(filters: any): Promise<Student[]> {
@@ -19,6 +19,10 @@ export class StudentsRepository {
                 s.ContactPhone,
                 s.EmergencyContact,
                 s.EmergencyPhone,
+                s.Module1,
+                s.Module2,
+                s.Module3,
+                s.Module4,
                 s.DateEnrolled,
                 s.LastLoginDate,
                 s.IsActive,
@@ -51,6 +55,10 @@ export class StudentsRepository {
                 s.ContactPhone,
                 s.EmergencyContact,
                 s.EmergencyPhone,
+                s.Module1,
+                s.Module2,
+                s.Module3,
+                s.Module4,
                 s.DateEnrolled,
                 s.LastLoginDate,
                 s.IsActive,
@@ -155,6 +163,39 @@ export class StudentsRepository {
             WHERE s.ProgramID = @programId AND s.IsActive = 1
         `;
         return databaseService.executeQuery(query, { programId });
+    }
+
+    async getAssessmentHistoryByStudentId(studentId: number): Promise<StudentAssessmentRecord[]> {
+        const query = `
+            IF OBJECT_ID(N'dbo.StudentAssessments', N'U') IS NULL
+            BEGIN
+                SELECT
+                    CAST(NULL AS INT) AS AssessmentRecordID,
+                    CAST(NULL AS NVARCHAR(10)) AS [Date],
+                    CAST(NULL AS NVARCHAR(150)) AS Subject,
+                    CAST(NULL AS NVARCHAR(50)) AS Assessment,
+                    CAST(NULL AS FLOAT) AS Grade,
+                    CAST(NULL AS NVARCHAR(30)) AS Status
+                WHERE 1 = 0;
+            END
+            ELSE
+            BEGIN
+                SELECT
+                    sa.StudentAssessmentID AS AssessmentRecordID,
+                    CONVERT(NVARCHAR(10), sa.SubmissionDate, 23) AS [Date],
+                    sa.SubjectName AS Subject,
+                    at.AssessmentTypeName AS Assessment,
+                    CAST(sa.GradePercentage AS FLOAT) AS Grade,
+                    gs.StatusName AS Status
+                FROM StudentAssessments sa
+                INNER JOIN AssessmentTypes at ON sa.AssessmentTypeID = at.AssessmentTypeID
+                INNER JOIN AssessmentStatuses gs ON sa.AssessmentStatusID = gs.AssessmentStatusID
+                WHERE sa.StudentID = @studentId
+                ORDER BY sa.SubmissionDate DESC, sa.StudentAssessmentID DESC;
+            END
+        `;
+
+        return databaseService.executeQuery<StudentAssessmentRecord>(query, { studentId });
     }
 
 }

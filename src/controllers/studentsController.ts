@@ -76,6 +76,12 @@ export class StudentsController {
                         ContactPhone: student.ContactPhone,
                         EmergencyContact: student.EmergencyContact,
                         EmergencyPhone: student.EmergencyPhone,
+                        Module1: student.Module1,
+                        Module2: student.Module2,
+                        Module3: student.Module3,
+                        Module4: student.Module4,
+                        Modules: student.Modules || [],
+                        AssessmentHistory: student.AssessmentHistory || [],
                         DateEnrolled: student.DateEnrolled,
                         LastLoginDate: student.LastLoginDate
                     },
@@ -204,6 +210,75 @@ export class StudentsController {
             }
             
             console.error('Error updating student risk level:', error);
+            next(error);
+        }
+    };
+
+    // Create student assessment record
+    // POST /api/students/:id/assessments
+    createStudentAssessment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const { id } = req.params;
+            const studentId = parseInt(id || '', 10);
+
+            if (isNaN(studentId) || studentId <= 0) {
+                res.status(400).json({
+                    error: 'Invalid student ID',
+                    message: 'Student ID must be a positive integer'
+                });
+                return;
+            }
+
+            const payload = req.body as Record<string, unknown>;
+            const date = String(payload.Date ?? payload.date ?? '').trim();
+            const subject = String(payload.Subject ?? payload.subject ?? '').trim();
+            const assessment = String(payload.Assessment ?? payload.assessment ?? '').trim();
+            const status = String(payload.Status ?? payload.status ?? '').trim();
+            const notesRaw = payload.Notes ?? payload.notes;
+            const notes = notesRaw === undefined || notesRaw === null ? undefined : String(notesRaw);
+
+            const gradeInput = payload.Grade ?? payload.grade;
+            const grade = typeof gradeInput === 'string' ? parseFloat(gradeInput) : Number(gradeInput);
+
+            const createdAssessment = await this.studentsService.createStudentAssessment(studentId, {
+                date,
+                subject,
+                assessment,
+                grade,
+                status,
+                notes
+            });
+
+            res.status(201).json({
+                success: true,
+                message: 'Assessment record created successfully',
+                data: createdAssessment
+            });
+        } catch (error) {
+            if (error instanceof Error) {
+                if (error.message === 'Student not found') {
+                    res.status(404).json({
+                        error: 'Student not found',
+                        message: `Student with ID ${req.params.id} not found or inactive`
+                    });
+                    return;
+                }
+
+                if (
+                    error.message.startsWith('Invalid') ||
+                    error.message.endsWith('is required.') ||
+                    error.message.startsWith('Grade must') ||
+                    error.message.startsWith('Failed to create')
+                ) {
+                    res.status(400).json({
+                        error: 'Validation failed',
+                        message: error.message
+                    });
+                    return;
+                }
+            }
+
+            console.error('Error creating student assessment:', error);
             next(error);
         }
     };

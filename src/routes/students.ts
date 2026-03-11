@@ -233,6 +233,34 @@ const validateUpdateRisk = [
   body('reason').optional().isString().withMessage('Reason must be a string')
 ];
 
+const validateCreateAssessment = [
+  param('id').isInt({ min: 1 }).withMessage('Student ID must be a positive integer'),
+  body().custom((value) => {
+    const date = value?.Date ?? value?.date;
+    const subject = value?.Subject ?? value?.subject;
+    const assessment = value?.Assessment ?? value?.assessment;
+    const grade = value?.Grade ?? value?.grade;
+    const status = value?.Status ?? value?.status;
+
+    const missingFields: string[] = [];
+    if (date === undefined || date === null || String(date).trim() === '') missingFields.push('Date');
+    if (subject === undefined || subject === null || String(subject).trim() === '') missingFields.push('Subject');
+    if (assessment === undefined || assessment === null || String(assessment).trim() === '') missingFields.push('Assessment');
+    if (grade === undefined || grade === null || String(grade).trim() === '') missingFields.push('Grade');
+    if (status === undefined || status === null || String(status).trim() === '') missingFields.push('Status');
+
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
+
+    return true;
+  }),
+  body('Date').optional().isISO8601().withMessage('Date must be a valid ISO date (YYYY-MM-DD)'),
+  body('date').optional().isISO8601().withMessage('date must be a valid ISO date (YYYY-MM-DD)'),
+  body('Grade').optional().isFloat({ min: 0, max: 100 }).withMessage('Grade must be between 0 and 100'),
+  body('grade').optional().isFloat({ min: 0, max: 100 }).withMessage('grade must be between 0 and 100')
+];
+
 // Validation error handler
 const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {
   const errors = validationResult(req);
@@ -256,6 +284,9 @@ router.get('/statistics', studentsController.getStudentStatistics);
 
 // PUT /api/students/:id/risk - Update student risk level
 router.put('/:id/risk', validateUpdateRisk, handleValidationErrors, studentsController.updateStudentRiskLevel);
+
+// POST /api/students/:id/assessments - Create a student assessment record
+router.post('/:id/assessments', validateCreateAssessment, handleValidationErrors, studentsController.createStudentAssessment);
 
 // GET /api/students/:id - Get single student by ID
 router.get('/:id', validateStudentId, handleValidationErrors, studentsController.getStudentById);

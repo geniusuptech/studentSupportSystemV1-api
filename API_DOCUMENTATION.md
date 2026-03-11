@@ -1,10 +1,10 @@
 # Student Wellness Dashboard API Documentation
 
-## 📖 Overview
+## ðŸ“– Overview
 
 The Student Wellness Dashboard API is a RESTful service designed to manage student data, risk assessments, and support requests for educational institutions.
 
-## 🚀 Quick Start
+## ðŸš€ Quick Start
 
 ### Starting the Server
 
@@ -21,11 +21,11 @@ npm start
 
 Once the server is running, you can access the interactive API documentation at:
 
-**📋 Swagger UI:** http://localhost:3001/api-docs
+**ðŸ“‹ Swagger UI:** http://localhost:3001/api-docs
 
-**📄 OpenAPI JSON:** http://localhost:3001/api-docs.json
+**ðŸ“„ OpenAPI JSON:** http://localhost:3001/api-docs.json
 
-## 🛠️ API Endpoints
+## ðŸ› ï¸ API Endpoints
 
 ### Base URL
 ```
@@ -51,7 +51,7 @@ http://localhost:3001/api
 - `GET /api/support-requests` - Get all support requests
 - (Additional support request endpoints as implemented)
 
-## 🧪 Testing the API
+## ðŸ§ª Testing the API
 
 ### Using Swagger UI
 1. Navigate to http://localhost:3001/api-docs
@@ -95,7 +95,7 @@ async function getStudent(id) {
 getStudent(21056789).then(student => console.log(student));
 ```
 
-## 📊 Response Formats
+## ðŸ“Š Response Formats
 
 ### Success Response
 ```json
@@ -128,18 +128,18 @@ getStudent(21056789).then(student => console.log(student));
 }
 ```
 
-## 🔒 Authentication
+## ðŸ”’ Authentication
 
 Currently, the API does not require authentication. This may be added in future versions using JWT tokens.
 
-## 🎯 Risk Levels
+## ðŸŽ¯ Risk Levels
 
 Students can have one of three risk levels:
 - **Safe**: Student is performing well
 - **At Risk**: Student needs monitoring
 - **Critical**: Student requires immediate intervention
 
-## 📋 Data Models
+## ðŸ“‹ Data Models
 
 ### Student Object
 ```json
@@ -167,13 +167,13 @@ Students can have one of three risk levels:
 }
 ```
 
-## 🚨 Error Codes
+## ðŸš¨ Error Codes
 
 - **400**: Bad Request - Invalid input or validation error
 - **404**: Not Found - Resource does not exist
 - **500**: Internal Server Error - Server-side error
 
-## 🔧 Development
+## ðŸ”§ Development
 
 ### Environment Variables
 Create a `.env` file with your database configuration:
@@ -182,7 +182,7 @@ Create a `.env` file with your database configuration:
 NODE_ENV=development
 PORT=3001
 DB_SERVER=localhost\SQLEXPRESS
-DB_NAME=StudentWellnessDB
+DB_NAME=StudentWellness
 DB_USER=
 DB_PASSWORD=
 DB_PORT=1433
@@ -205,7 +205,7 @@ npm run build
 npm start
 ```
 
-## 📝 API Versioning
+## ðŸ“ API Versioning
 
 Current API version: **v1.0.0**
 
@@ -213,14 +213,14 @@ Future versions will be accessible via path versioning:
 - `/api/v1/...`
 - `/api/v2/...`
 
-## 🤝 Support
+## ðŸ¤ Support
 
 For API support and questions:
 - Check the Swagger documentation at `/api-docs`
 - Review the test examples in `test-student-api.js`
 - Test database connectivity with `test-database-connection.js`
 
-## 📚 Additional Resources
+## ðŸ“š Additional Resources
 
 - **Interactive Documentation**: http://localhost:3001/api-docs
 - **OpenAPI Specification**: http://localhost:3001/api-docs.json

@@ -195,7 +195,7 @@ FRONTEND_URL=http://localhost:3000
 
 # Database Configuration
 DB_SERVER=localhost
-DB_NAME=StudentWellnessDB
+DB_NAME=StudentWellness
 DB_USER=sa
 DB_PASSWORD=your_password
 DB_PORT=1433

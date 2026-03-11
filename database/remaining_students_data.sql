@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Student Wellness Dashboard - Student Data Population
 -- ============================================================================
--- This script populates the StudentWellnessDB with 130 students and sample
+-- This script populates the StudentWellness with 130 students and sample
 -- support requests to provide a complete dataset for testing and development.
 --
 -- Distribution:
@@ -13,7 +13,7 @@
 -- Version: 1.0
 -- ============================================================================
 
-USE StudentWellnessDB;
+USE StudentWellness;
 GO
 
 -- Clear existing student data for clean import

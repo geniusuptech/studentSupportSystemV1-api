@@ -118,3 +118,6 @@ uploads/
 *.pem
 *.crt
 *.key
+
+# Local tunnel binaries
+tools/

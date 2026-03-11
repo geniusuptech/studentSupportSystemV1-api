@@ -149,7 +149,7 @@ const authController = new AuthController();
 
 /**
  * @swagger
- * /api/auth/login:
+ * /auth/login:
  *   post:
  *     summary: User login
  *     description: Authenticate user with email and password, returns JWT token
@@ -184,7 +184,7 @@ router.post('/login', AuthController.validateLogin, authController.login);
 
 /**
  * @swagger
- * /api/auth/register:
+ * /auth/register:
  *   post:
  *     summary: User registration
  *     description: Create a new user account
@@ -213,7 +213,7 @@ router.post('/register', AuthController.validateRegister, authController.registe
 
 /**
  * @swagger
- * /api/auth/me:
+ * /auth/me:
  *   get:
  *     summary: Get current user
  *     description: Get the currently authenticated user's information
@@ -256,7 +256,7 @@ router.get('/me', authenticateToken, authController.getCurrentUser);
 
 /**
  * @swagger
- * /api/auth/change-password:
+ * /auth/change-password:
  *   post:
  *     summary: Change password
  *     description: Change the current user's password
@@ -285,7 +285,7 @@ router.post('/change-password', authenticateToken, AuthController.validatePasswo
 
 /**
  * @swagger
- * /api/auth/logout:
+ * /auth/logout:
  *   post:
  *     summary: User logout
  *     description: Logout the current user (client should remove token)
@@ -304,7 +304,7 @@ router.post('/logout', authController.logout);
 
 /**
  * @swagger
- * /api/auth/validate-token:
+ * /auth/validate-token:
  *   get:
  *     summary: Validate JWT token
  *     description: Validate if the provided JWT token is still valid
@@ -336,7 +336,7 @@ router.get('/validate-token', authController.validateToken);
 
 /**
  * @swagger
- * /api/auth/deactivate:
+ * /auth/deactivate:
  *   post:
  *     summary: Deactivate account
  *     description: Deactivate the current user's account

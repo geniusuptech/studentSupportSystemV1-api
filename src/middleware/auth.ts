@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthTokenPayload } from '../models/User';
+import { getJwtSecret } from '../config/security';
 
 // Extend Express Request interface to include user
 declare global {
@@ -28,10 +29,8 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
         return;
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-
     try {
-        const decoded = jwt.verify(token, jwtSecret) as AuthTokenPayload;
+        const decoded = jwt.verify(token, getJwtSecret()) as AuthTokenPayload;
         req.user = decoded;
         next();
     } catch (error) {
@@ -102,10 +101,8 @@ export const optionalAuth = (req: Request, res: Response, next: NextFunction): v
         return;
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-
     try {
-        const decoded = jwt.verify(token, jwtSecret) as AuthTokenPayload;
+        const decoded = jwt.verify(token, getJwtSecret()) as AuthTokenPayload;
         req.user = decoded;
     } catch (error) {
         // Ignore token errors for optional auth

@@ -5,7 +5,7 @@
 -- for South African universities in the Student Wellness Dashboard system.
 -- ============================================================================
 
-USE StudentWellnessDB;
+USE StudentWellness;
 GO
 
 -- ============================================================================

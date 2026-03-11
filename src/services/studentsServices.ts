@@ -1,5 +1,5 @@
 import { studentsRepository } from '../repository/studentsRepository';
-import { Student } from '../models/Student';
+import { Student, StudentAssessmentRecord } from '../models/Student';
 import databaseService from '../config/database';
 
 interface StudentStatistics {
@@ -29,6 +29,15 @@ interface UpdateRiskLevelResult {
   updatedAt: string;
 }
 
+interface CreateStudentAssessmentInput {
+  date: string;
+  subject: string;
+  assessment: string;
+  grade: number;
+  status: string;
+  notes?: string;
+}
+
 export class StudentsService {
   async getAllStudents(filters: any): Promise<(Student & { ActiveRequestCount: number })[]> {
     const students = await studentsRepository.getAllStudents(filters);
@@ -41,7 +50,26 @@ export class StudentsService {
   async getStudentById(id: number): Promise<Student | undefined> {
     const student = await studentsRepository.getStudentById(id);
     if (!student.length) throw new Error('Student not found');
-    return student[0];
+
+    const studentData = student[0] as Student;
+    const assessmentHistory = await studentsRepository.getAssessmentHistoryByStudentId(id);
+    const modules = [
+      studentData.Module1,
+      studentData.Module2,
+      studentData.Module3,
+      studentData.Module4
+    ].filter((module): module is string => Boolean(module && module.trim()));
+
+    const normalizedAssessmentHistory: StudentAssessmentRecord[] = assessmentHistory.map((record) => ({
+      ...record,
+      Grade: Math.round((record.Grade || 0) * 100) / 100
+    }));
+
+    return {
+      ...studentData,
+      Modules: modules,
+      AssessmentHistory: normalizedAssessmentHistory
+    };
   }
 
   async getStudentsByRiskLevel(riskLevel: 'Safe' | 'At Risk' | 'Critical'): Promise<Student[]> {
@@ -187,6 +215,142 @@ export class StudentsService {
       newRiskLevel: riskLevel,
       reason: reason || 'No reason provided',
       updatedAt: new Date().toISOString()
+    };
+  }
+
+  async createStudentAssessment(studentId: number, input: CreateStudentAssessmentInput): Promise<StudentAssessmentRecord> {
+    const student = await studentsRepository.getStudentById(studentId);
+    if (!student.length) {
+      throw new Error('Student not found');
+    }
+
+    const submissionDate = input.date.trim();
+    const isValidDateFormat = /^\d{4}-\d{2}-\d{2}$/.test(submissionDate);
+    const parsedDate = new Date(`${submissionDate}T12:00:00Z`);
+    if (!isValidDateFormat || Number.isNaN(parsedDate.getTime())) {
+      throw new Error('Invalid date format. Use YYYY-MM-DD.');
+    }
+
+    const grade = Number(input.grade);
+    if (!Number.isFinite(grade) || grade < 0 || grade > 100) {
+      throw new Error('Grade must be a number between 0 and 100.');
+    }
+
+    const subject = input.subject.trim();
+    const assessmentName = input.assessment.trim();
+    const statusName = input.status.trim();
+
+    if (!subject) {
+      throw new Error('Subject is required.');
+    }
+    if (!assessmentName) {
+      throw new Error('Assessment type is required.');
+    }
+    if (!statusName) {
+      throw new Error('Status is required.');
+    }
+
+    const typeRows = await databaseService.executeQuery<{ AssessmentTypeID: number }>(
+      `
+      SELECT TOP 1 AssessmentTypeID
+      FROM AssessmentTypes
+      WHERE AssessmentTypeName = @assessmentName
+        AND IsActive = 1
+      `,
+      { assessmentName }
+    );
+
+    if (!typeRows.length) {
+      throw new Error(`Invalid assessment type: ${assessmentName}`);
+    }
+    const assessmentTypeId = typeRows[0]!.AssessmentTypeID;
+
+    const statusRows = await databaseService.executeQuery<{ AssessmentStatusID: number }>(
+      `
+      SELECT TOP 1 AssessmentStatusID
+      FROM AssessmentStatuses
+      WHERE StatusName = @statusName
+        AND IsActive = 1
+      `,
+      { statusName }
+    );
+
+    if (!statusRows.length) {
+      throw new Error(`Invalid assessment status: ${statusName}`);
+    }
+    const assessmentStatusId = statusRows[0]!.AssessmentStatusID;
+
+    const insertRows = await databaseService.executeQuery<{ AssessmentRecordID: number }>(
+      `
+      INSERT INTO StudentAssessments (
+        StudentID,
+        SubjectName,
+        AssessmentTypeID,
+        GradePercentage,
+        AssessmentStatusID,
+        SubmissionDate,
+        Notes,
+        CreatedAt,
+        UpdatedAt
+      )
+      OUTPUT INSERTED.StudentAssessmentID AS AssessmentRecordID
+      VALUES (
+        @studentId,
+        @subject,
+        @assessmentTypeId,
+        @grade,
+        @assessmentStatusId,
+        @submissionDate,
+        @notes,
+        GETDATE(),
+        GETDATE()
+      )
+      `,
+      {
+        studentId,
+        subject,
+        assessmentTypeId,
+        grade,
+        assessmentStatusId,
+        submissionDate,
+        notes: input.notes || null
+      }
+    );
+
+    const assessmentRecordId = insertRows[0]?.AssessmentRecordID;
+    if (!assessmentRecordId) {
+      throw new Error('Failed to create assessment record.');
+    }
+
+    const createdRows = await databaseService.executeQuery<StudentAssessmentRecord>(
+      `
+      SELECT
+        sa.StudentAssessmentID AS AssessmentRecordID,
+        CONVERT(NVARCHAR(10), sa.SubmissionDate, 23) AS [Date],
+        sa.SubjectName AS Subject,
+        at.AssessmentTypeName AS Assessment,
+        CAST(sa.GradePercentage AS FLOAT) AS Grade,
+        gs.StatusName AS Status
+      FROM StudentAssessments sa
+      INNER JOIN AssessmentTypes at ON sa.AssessmentTypeID = at.AssessmentTypeID
+      INNER JOIN AssessmentStatuses gs ON sa.AssessmentStatusID = gs.AssessmentStatusID
+      WHERE sa.StudentAssessmentID = @assessmentRecordId
+      `,
+      { assessmentRecordId }
+    );
+
+    if (!createdRows.length) {
+      throw new Error('Failed to fetch created assessment record.');
+    }
+
+    const created = createdRows[0]!;
+    return {
+      AssessmentRecordID: created.AssessmentRecordID,
+      Date: created.Date,
+      Subject: created.Subject,
+      Assessment: created.Assessment,
+      Grade: Math.round((created.Grade || 0) * 100) / 100,
+      Status: created.Status
     };
   }
 }

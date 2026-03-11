@@ -10,8 +10,16 @@
     "dev:watch": "nodemon --exec ts-node src/index.ts",
     "test": "jest",
     "test:watch": "jest --watch",
+    "setup:users-auth": "ts-node setup-users-auth.ts",
+    "setup:support-schema": "node setup-support-schema.js",
+    "setup:student-assessments": "node setup-student-assessments-schema.js",
+    "assign:lerato-modules": "node assign-lerato-modules.js",
+    "cloudflare:quick": "powershell -ExecutionPolicy Bypass -File scripts/start-cloudflare-quick.ps1",
+    "cloudflare:named": "powershell -ExecutionPolicy Bypass -File scripts/start-cloudflare-named.ps1",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "iis:build": "npm run build && echo Build complete for IIS deployment",
+    "iis:install": "npm ci --omit=dev"
   },
   "keywords": [
     "student-wellness",
