@@ -1,0 +1,10 @@
+name = "student-wellness-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+# Use nodejs_compat_v2 for better node compatibility
+compatibility_flags = [ "nodejs_compat" ]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "student-wellness-db-fresh"
+database_id = "e467dc8b-74a1-448e-aedf-5727e9b8a301"

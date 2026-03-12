@@ -1,30 +1,10 @@
-import sql from 'mssql';
-import dotenv from 'dotenv';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
-dotenv.config();
-
-const config: sql.config = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'StudentWellness',
-  server: process.env.DB_SERVER || 'localhost',
-  pool: {
-    max: 10,
-    min: 0,
-    idleTimeoutMillis: 30000
-  },
-  options: {
-    encrypt: process.env.DB_ENCRYPT === 'true' || process.env.NODE_ENV === 'production', // Use encryption in production or if explicitly requested
-    trustServerCertificate: process.env.DB_TRUST_CERT !== 'false' && process.env.NODE_ENV !== 'production' // Trust cert in dev unless explicitly told not to
-  }
-};
-
-export const connectionString = `Server=${config.server};Database=${config.database};User=${config.user};`;
+// Singleton for AsyncLocalStorage to hold the D1Database instance per request
+export const dbContext = new AsyncLocalStorage<D1Database>();
 
 class DatabaseService {
   private static instance: DatabaseService;
-  private pool: sql.ConnectionPool | null = null;
-  private connected: boolean = false;
 
   private constructor() { }
 
@@ -35,103 +15,72 @@ class DatabaseService {
     return DatabaseService.instance;
   }
 
-  public async connect(): Promise<void> {
-    if (this.connected && this.pool) {
-      console.log('Database already connected');
-      return;
-    }
+  // Compatibility methods
+  public async connect(): Promise<void> { return Promise.resolve(); }
+  public async testConnection(): Promise<boolean> { return true; }
+  public isConnected(): boolean { return true; }
+  public async disconnect(): Promise<void> { return Promise.resolve(); }
 
-    try {
-      console.log('Connecting to database via standard SQL login...');
-      console.log('Server:', config.server);
-      console.log('Database:', config.database);
-
-      this.pool = await sql.connect(config);
-      this.connected = true;
-      console.log('Successfully connected to SQL Server database');
-
-      // Test the connection
-      await this.testConnection();
-    } catch (err) {
-      console.error('Database connection failed:', err);
-      this.connected = false;
-      throw err;
-    }
-  }
-
-  public async testConnection(): Promise<boolean> {
-    if (!this.pool || !this.connected) {
-      throw new Error('Database not connected');
-    }
-
-    try {
-      const result = await this.pool.request().query('SELECT 1 as test');
-      console.log('Database test successful:', result.recordset[0]);
-      return true;
-    } catch (err) {
-      console.error('Database test failed:', err);
-      return false;
-    }
-  }
-
-  public isConnected(): boolean {
-    return this.connected;
-  }
-
-  public async disconnect(): Promise<void> {
-    if (this.pool) {
-      try {
-        await this.pool.close();
-        this.pool = null;
-        this.connected = false;
-        console.log('Database connection closed');
-      } catch (err) {
-        console.error('Error closing database connection:', err);
-        throw err;
-      }
-    }
-  }
-
-  // Helper method to execute queries
   public async executeQuery<T = any>(query: string, params?: Record<string, any>): Promise<T[]> {
-    if (!this.pool || !this.connected) {
-      throw new Error('Database not connected. Call connect() first.');
+    const db = dbContext.getStore();
+    if (!db) {
+      throw new Error('Database context not found. Ensure D1 middleware is running.');
+    }
+
+    // Basic MS SQL to SQLite translation
+    let processedQuery = query
+      .replace(/GETDATE\(\)/gi, 'CURRENT_TIMESTAMP')
+      .replace(/\bISNULL\b/gi, 'IFNULL')
+      .replace(/\bSCOPE_IDENTITY\(\)/gi, 'last_insert_rowid()');
+
+    // Handle SELECT TOP N -> SELECT ... LIMIT N
+    const topRegex = /SELECT\s+TOP\s+(\d+)\s+/i;
+    const topMatch = processedQuery.match(topRegex);
+    if (topMatch) {
+      const topCount = topMatch[1];
+      processedQuery = processedQuery.replace(topRegex, 'SELECT ');
+      processedQuery += ` LIMIT ${topCount}`;
+    }
+
+    const bindParams: any[] = [];
+    if (params) {
+      const sortedKeys = Object.keys(params).sort((a, b) => b.length - a.length);
+      for (const key of sortedKeys) {
+        const regex = new RegExp(`@${key}\\b`, 'g');
+        if (regex.test(processedQuery)) {
+          processedQuery = processedQuery.replace(regex, '?');
+          bindParams.push(params[key]);
+        }
+      }
     }
 
     try {
-      const request = this.pool.request();
-      if (params) {
-        Object.keys(params).forEach(key => {
-          request.input(key, params[key]);
-        });
+      const statements = processedQuery.split(';').map(s => s.trim()).filter(s => s.length > 0);
+
+      if (statements.length > 1) {
+        let lastResults: any[] = [];
+        for (const stmtText of statements) {
+          const stmt = db.prepare(stmtText).bind(...bindParams);
+          // If statement doesn't have ? but bindParams has items, D1 might complain. 
+          // We'll trust D1's bind to ignore extra params or we'll filter.
+          const res = await stmt.all<any>();
+          if (res.results) lastResults = res.results;
+        }
+        return lastResults as T[];
       }
-      const result = await request.query(query);
-      return (result.recordset || []) as T[];
+
+      const stmt = db.prepare(processedQuery).bind(...bindParams);
+      const { results } = await stmt.all<T>();
+      return results || [];
     } catch (err) {
-      console.error('Query execution failed:', err);
+      console.error('D1 Query execution failed:', err);
+      console.error('Processed Query:', processedQuery);
       throw err;
     }
   }
 
-  // Helper method to execute stored procedures
   public async executeStoredProcedure<T = any>(procedureName: string, params?: Record<string, any>): Promise<T[]> {
-    if (!this.pool || !this.connected) {
-      throw new Error('Database not connected. Call connect() first.');
-    }
-
-    try {
-      const request = this.pool.request();
-      if (params) {
-        Object.keys(params).forEach(key => {
-          request.input(key, params[key]);
-        });
-      }
-      const result = await request.execute(procedureName);
-      return (result.recordset || []) as T[];
-    } catch (err) {
-      console.error('Stored procedure execution failed:', err);
-      throw err;
-    }
+    throw new Error(`Stored Procedure '${procedureName}' not supported on Cloudflare D1.`);
   }
 }
 

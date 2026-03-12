@@ -32,6 +32,7 @@
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
+    "hono": "^4.12.7",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "mssql": "^9.3.2",
@@ -40,6 +41,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260312.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
@@ -61,7 +63,8 @@
     "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "wrangler": "^4.72.0"
   },
   "engines": {
     "node": ">=16.0.0",
