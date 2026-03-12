@@ -1,24 +1,32 @@
-import * as msnodesqlv8 from 'msnodesqlv8';
+import sql from 'mssql';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const server = process.env.DB_SERVER || 'localhost\\SQLEXPRESS';
-const database = process.env.DB_NAME || 'StudentWellness';
+const config: sql.config = {
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || 'StudentWellness',
+  server: process.env.DB_SERVER || 'localhost',
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
+  },
+  options: {
+    encrypt: process.env.DB_ENCRYPT === 'true' || process.env.NODE_ENV === 'production', // Use encryption in production or if explicitly requested
+    trustServerCertificate: process.env.DB_TRUST_CERT !== 'false' && process.env.NODE_ENV !== 'production' // Trust cert in dev unless explicitly told not to
+  }
+};
 
-export const connectionString = `Driver={ODBC Driver 17 for SQL Server};Server=${server};Database=${database};Trusted_Connection=Yes;`;
-
-// Types for msnodesqlv8
-interface QueryResult<T> {
-  recordset: T[];
-}
+export const connectionString = `Server=${config.server};Database=${config.database};User=${config.user};`;
 
 class DatabaseService {
   private static instance: DatabaseService;
-  private connection: MsNodeSqlV8.Connection | null = null;
+  private pool: sql.ConnectionPool | null = null;
   private connected: boolean = false;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): DatabaseService {
     if (!DatabaseService.instance) {
@@ -28,52 +36,42 @@ class DatabaseService {
   }
 
   public async connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.connected && this.connection) {
-        console.log('Database already connected');
-        resolve();
-        return;
-      }
+    if (this.connected && this.pool) {
+      console.log('Database already connected');
+      return;
+    }
 
-      console.log('Connecting to database...');
-      console.log('Connection string:', connectionString);
-      
-      msnodesqlv8.open(connectionString, (err: MsNodeSqlV8.Error | null, conn: MsNodeSqlV8.Connection) => {
-        if (err) {
-          console.error('Database connection failed:', err);
-          this.connected = false;
-          reject(err);
-        } else {
-          this.connection = conn;
-          this.connected = true;
-          console.log('Successfully connected to SQL Server database');
-          
-          // Test the connection
-          this.testConnection()
-            .then(() => resolve())
-            .catch(reject);
-        }
-      });
-    });
+    try {
+      console.log('Connecting to database via standard SQL login...');
+      console.log('Server:', config.server);
+      console.log('Database:', config.database);
+
+      this.pool = await sql.connect(config);
+      this.connected = true;
+      console.log('Successfully connected to SQL Server database');
+
+      // Test the connection
+      await this.testConnection();
+    } catch (err) {
+      console.error('Database connection failed:', err);
+      this.connected = false;
+      throw err;
+    }
   }
 
   public async testConnection(): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      if (!this.connection) {
-        reject(new Error('Database not connected'));
-        return;
-      }
+    if (!this.pool || !this.connected) {
+      throw new Error('Database not connected');
+    }
 
-      this.connection.query('SELECT 1 as test', (err, results) => {
-        if (err) {
-          console.error('Database test failed:', err);
-          resolve(false);
-        } else {
-          console.log('Database test successful:', results ? results[0] : null);
-          resolve(true);
-        }
-      });
-    });
+    try {
+      const result = await this.pool.request().query('SELECT 1 as test');
+      console.log('Database test successful:', result.recordset[0]);
+      return true;
+    } catch (err) {
+      console.error('Database test failed:', err);
+      return false;
+    }
   }
 
   public isConnected(): boolean {
@@ -81,82 +79,59 @@ class DatabaseService {
   }
 
   public async disconnect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.connection) {
-        this.connection.close((err) => {
-          if (err) {
-            console.error('Error closing database connection:', err);
-            reject(err);
-          } else {
-            this.connection = null;
-            this.connected = false;
-            console.log('Database connection closed');
-            resolve();
-          }
-        });
-      } else {
-        resolve();
+    if (this.pool) {
+      try {
+        await this.pool.close();
+        this.pool = null;
+        this.connected = false;
+        console.log('Database connection closed');
+      } catch (err) {
+        console.error('Error closing database connection:', err);
+        throw err;
       }
-    });
+    }
   }
 
   // Helper method to execute queries
   public async executeQuery<T = any>(query: string, params?: Record<string, any>): Promise<T[]> {
-    return new Promise((resolve, reject) => {
-      if (!this.connection) {
-        reject(new Error('Database not connected. Call connect() first.'));
-        return;
-      }
+    if (!this.pool || !this.connected) {
+      throw new Error('Database not connected. Call connect() first.');
+    }
 
-      // Replace @param placeholders with actual values
-      let processedQuery = query;
+    try {
+      const request = this.pool.request();
       if (params) {
         Object.keys(params).forEach(key => {
-          const value = params[key];
-          let sqlValue: string;
-          
-          if (value === null || value === undefined) {
-            sqlValue = 'NULL';
-          } else if (typeof value === 'string') {
-            sqlValue = `'${value.replace(/'/g, "''")}'`;
-          } else if (typeof value === 'number') {
-            sqlValue = String(value);
-          } else if (value instanceof Date) {
-            sqlValue = `'${value.toISOString()}'`;
-          } else {
-            sqlValue = `'${String(value).replace(/'/g, "''")}'`;
-          }
-          
-          processedQuery = processedQuery.replace(new RegExp(`@${key}\\b`, 'g'), sqlValue);
+          request.input(key, params[key]);
         });
       }
-
-      this.connection.query(processedQuery, (err, results) => {
-        if (err) {
-          console.error('Query execution failed:', err);
-          reject(err);
-        } else {
-          resolve((results || []) as T[]);
-        }
-      });
-    });
+      const result = await request.query(query);
+      return (result.recordset || []) as T[];
+    } catch (err) {
+      console.error('Query execution failed:', err);
+      throw err;
+    }
   }
 
   // Helper method to execute stored procedures
   public async executeStoredProcedure<T = any>(procedureName: string, params?: Record<string, any>): Promise<T[]> {
-    // Build EXEC statement
-    let query = `EXEC ${procedureName}`;
-    if (params) {
-      const paramList = Object.entries(params).map(([key, value]) => {
-        if (value === null || value === undefined) return `@${key} = NULL`;
-        if (typeof value === 'string') return `@${key} = '${value.replace(/'/g, "''")}'`;
-        if (typeof value === 'number') return `@${key} = ${value}`;
-        return `@${key} = '${String(value).replace(/'/g, "''")}'`;
-      });
-      query += ' ' + paramList.join(', ');
+    if (!this.pool || !this.connected) {
+      throw new Error('Database not connected. Call connect() first.');
     }
 
-    return await this.executeQuery<T>(query);
+    try {
+      const request = this.pool.request();
+      if (params) {
+        Object.keys(params).forEach(key => {
+          request.input(key, params[key]);
+        });
+      }
+      const result = await request.execute(procedureName);
+      return (result.recordset || []) as T[];
+    } catch (err) {
+      console.error('Stored procedure execution failed:', err);
+      throw err;
+    }
   }
 }
 
