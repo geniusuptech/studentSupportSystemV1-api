@@ -10,7 +10,7 @@ export const swaggerSpec = {
     }
   },
   servers: [
-    { url: '/api', description: 'API Gateway (Supabase)' },
+    { url: '/api', description: 'Cloudflare API Gateway' },
   ],
   paths: {
     '/health': {
