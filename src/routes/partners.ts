@@ -49,6 +49,17 @@ router.get('/statistics', async (c) => {
     }
 });
 
+// GET /api/partners/types
+router.get('/types', async (c) => {
+    try {
+        const types = await partnersRepository.getTypes();
+        return c.json({ success: true, data: types });
+    } catch (error: any) {
+        console.error('Error fetching partner types:', error);
+        return c.json({ success: false, message: 'Failed to fetch partner types' }, 500);
+    }
+});
+
 // GET /api/partners/:id
 router.get('/:id', async (c) => {
     try {

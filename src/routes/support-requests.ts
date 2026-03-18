@@ -40,6 +40,19 @@ router.put('/:id/assign', async (c) => {
     }
 });
 
+// PUT /api/support-requests/:id/status
+router.put('/:id/status', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const { status } = await c.req.json();
+        await supportRequestsRepository.updateStatus(id, status);
+        return c.json({ success: true, message: 'Status updated successfully' });
+    } catch (error: any) {
+        console.error('Error updating status:', error);
+        return c.json({ success: false, message: 'Failed to update status' }, 500);
+    }
+});
+
 // GET /api/support-requests/statistics
 router.get('/statistics', async (c) => {
     try {

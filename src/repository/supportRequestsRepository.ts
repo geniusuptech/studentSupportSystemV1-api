@@ -82,12 +82,12 @@ export class SupportRequestsRepository {
     async createRequest(data: any): Promise<any> {
         const query = `
             INSERT INTO SupportRequests (StudentID, CategoryID, Title, Description, Priority, Status, CreatedAt, UpdatedAt)
-            OUTPUT INSERTED.*
-            VALUES (@studentId, @categoryId, @title, @description, @priority, 'Open', GETDATE(), GETDATE())
+            VALUES (@studentId, @categoryId, @title, @description, @priority, 'Open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING RequestID
         `;
         const params = {
             studentId: data.studentId,
-            categoryId: data.categoryId || 1, // Default category
+            categoryId: data.categoryId || 1,
             title: data.title || 'Support Request',
             description: data.description,
             priority: data.priority || 'Medium'
@@ -99,17 +99,19 @@ export class SupportRequestsRepository {
     async assignPartner(id: string | number, partnerId: string | number): Promise<void> {
         const query = `
             UPDATE SupportRequests 
-            SET AssignedPartnerID = @partnerId, Status = 'In Progress', UpdatedAt = GETDATE()
+            SET AssignedPartnerID = @partnerId, Status = 'In Progress', UpdatedAt = CURRENT_TIMESTAMP
             WHERE RequestID = @id
         `;
         await databaseService.executeQuery(query, { id, partnerId });
     }
 
+    async updateStatus(id: string | number, status: string): Promise<void> {
+        const query = `UPDATE SupportRequests SET Status = @status, UpdatedAt = CURRENT_TIMESTAMP WHERE RequestID = @id`;
+        await databaseService.executeQuery(query, { id, status });
+    }
+
     async getStatistics(): Promise<any> {
-        const query = `
-            SELECT Status, CategoryID, AssignedPartnerID 
-            FROM SupportRequests
-        `;
+        const query = `SELECT Status, AssignedPartnerID FROM SupportRequests`;
         const data = await databaseService.executeQuery(query);
         
         return {

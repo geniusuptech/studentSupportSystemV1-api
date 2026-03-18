@@ -7,7 +7,6 @@ import studentsRoutes from './routes/students';
 import studentAuthRoutes from './routes/studentAuth';
 import supportRequestsRoutes from './routes/support-requests';
 import partnersRoutes from './routes/partners';
-import { authController } from './controllers/authController';
 import { authService } from './services/authServices';
 import authRoutes from './routes/auth';
 import dashboardRoutes from './routes/dashboard';
@@ -22,7 +21,13 @@ import messagesRoutes from './routes/messages';
 import { swaggerSpec } from './config/swagger';
 import databaseService from './config/database';
 
-const app = new Hono();
+// Types for Environment Bindings
+type Bindings = {
+  DB: D1Database;
+  JWT_SECRET: string;
+};
+
+const app = new Hono<{ Bindings: Bindings }>();
 
 // Middlewares
 app.use('*', logger());
@@ -44,10 +49,29 @@ app.get('/api/health', (c) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: 'production',
-    platform: 'Cloudflare Workers (MSSQL)',
+    platform: 'Cloudflare Workers (Hono)',
     version: '1.2.0',
-    setupRequired: !databaseService.isConfigured()
+    dbConfigured: databaseService.isConfigured()
   });
+});
+
+// Database connection test (D1 verify)
+app.get('/api/test-db', async (c) => {
+  try {
+    if (!c.env.DB) throw new Error('DB binding not found');
+    const result = await c.env.DB.prepare('SELECT 1').all();
+    return c.json({
+      success: true,
+      message: 'Cloudflare D1 Database is connected!',
+      result: result.results
+    });
+  } catch (err: any) {
+    return c.json({
+      success: false,
+      message: 'Database connection failed',
+      error: err.message
+    }, 500);
+  }
 });
 
 // Home endpoint
@@ -57,13 +81,13 @@ app.get('/', (c) => {
     version: '1.2.0',
     documentation: '/api-docs',
     health: '/api/health',
+    test_db: '/api/test-db',
     status: 'Ready'
   });
 });
 
 /**
  * Swagger Documentation UI
- * Serves a static HTML page that loads Swagger UI from CDN and uses the spec from /api-docs.json
  */
 app.get('/api-docs', (c) => {
   return c.html(`
@@ -103,19 +127,7 @@ app.get('/api-docs.json', (c) => {
   return c.json(swaggerSpec);
 });
 
-// Root endpoint
-app.get('/', (c) => {
-  return c.json({
-    message: 'Student Wellness Dashboard API is LIVE',
-    version: '1.0.0',
-    documentation: '/api-docs',
-    health: '/api/health',
-    status: 'Ready'
-  });
-});
-
-// Register API Routes - Order matters for overlapping paths!
-// More specific routes must come BEFORE more general ones
+// Register API Routes
 app.route('/api/students/auth', studentAuthRoutes);
 app.route('/api/students', studentsRoutes);
 app.route('/api/auth', authRoutes);
@@ -131,7 +143,7 @@ app.route('/api/messages', messagesRoutes);
 
 // Global Error Handler
 app.onError((err, c) => {
-  console.error(`[API Error] ${err.message}`);
+  console.error(\`[API Error] \${err.message}\`);
   return c.json({
     success: false,
     error: 'Internal Server Error',
@@ -144,7 +156,7 @@ app.notFound((c) => {
   return c.json({
     success: false,
     error: 'Not Found',
-    message: `Path ${c.req.path} not found`
+    message: \`Path \${c.req.path} not found\`
   }, 404);
 });
 

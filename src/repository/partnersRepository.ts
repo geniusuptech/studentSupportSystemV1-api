@@ -104,6 +104,12 @@ export class PartnersRepository {
     return data[0];
   }
 
+  async getTypes(): Promise<string[]> {
+      const query = `SELECT DISTINCT PartnerType FROM Partners`;
+      const data = await databaseService.executeQuery(query);
+      return data.map((d: any) => d.PartnerType);
+  }
+
   async getPartnerById(id: string | number): Promise<Partner | null> {
     const query = `SELECT * FROM Partners WHERE PartnerID = @id`;
     const data = await databaseService.executeQuery(query, { id });
@@ -127,11 +133,12 @@ export class PartnersRepository {
     const stats = await databaseService.executeQuery(statsQuery, { id });
 
     const recentQuery = `
-        SELECT TOP 5 sr.RequestID, sr.Title, sr.Status, sr.CreatedAt, s.StudentName
+        SELECT sr.RequestID, sr.Title, sr.Status, sr.CreatedAt, s.StudentName
         FROM SupportRequests sr
         JOIN Students s ON sr.StudentID = s.StudentID
         WHERE sr.AssignedPartnerID = @id
         ORDER BY sr.CreatedAt DESC
+        LIMIT 5
     `;
     const recent = await databaseService.executeQuery(recentQuery, { id });
 
