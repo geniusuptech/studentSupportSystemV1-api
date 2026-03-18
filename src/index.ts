@@ -143,12 +143,12 @@ app.route('/api/messages', messagesRoutes);
 
 // Global Error Handler
 app.onError((err, c) => {
-  console.error(\`[API Error] \${err.message}\`);
+  console.error(`[API Error] ${err.message}`);
   return c.json({
     success: false,
     error: 'Internal Server Error',
     message: err.message
-  }, 500);
+  }, 500) as any;
 });
 
 // 404 Not Found Handler
@@ -156,7 +156,7 @@ app.notFound((c) => {
   return c.json({
     success: false,
     error: 'Not Found',
-    message: \`Path \${c.req.path} not found\`
+    message: `Path ${c.req.path} not found`
   }, 404);
 });
 
