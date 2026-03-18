@@ -6,10 +6,10 @@ export class PartnersService {
     return partnersRepository.getAllPartners(filters);
   }
 
-  async getPartnerById(id: number): Promise<Partner | undefined> {
+  async getPartnerById(id: string): Promise<Partner | undefined> {
     const partner = await partnersRepository.getPartnerById(id);
-    if (!partner.length) throw new Error('Partner not found');
-    return partner[0];
+    if (!partner) throw new Error('Partner not found');
+    return partner;
   }
 
   // Add other service methods as needed

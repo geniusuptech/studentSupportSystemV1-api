@@ -1,7 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+type Request = any; type Response = any; type NextFunction = any;
+
 import { partnersService } from '../services/partnersServices';
 
-const router = Router();
+const router: any = {};
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -14,7 +15,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const partner = await partnersService.getPartnerById(Number(req.params.id));
+    const partner = await partnersService.getPartnerById(req.params.id);
     res.json({ success: true, data: partner });
   } catch (error) {
     next(error);

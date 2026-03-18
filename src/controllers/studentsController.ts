@@ -1,214 +1,110 @@
-import { Request, Response, NextFunction } from 'express';
-import { StudentsService } from '../services/studentsServices';
+import { Context } from 'hono';
+import { studentsService } from '../services/studentsServices';
 
 export class StudentsController {
-    private studentsService: StudentsService;
-
-    constructor() {
-        this.studentsService = new StudentsService();
-    }
-
     // Get all students
-    // GET /api/students/getAllStudents
-    getAllStudents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    getAllStudents = async (c: Context) => {
         try {
-            console.log('Fetching all students...');
-            
-            const filters = req.query; // You can expand this to handle specific filters
-            const students = await this.studentsService.getAllStudents(filters);
+            const filters = c.req.query();
+            const students = await studentsService.getAllStudents(filters);
 
-            console.log(`Retrieved ${students.length} students`);
-
-            res.json({
+            return c.json({
                 success: true,
                 count: students.length,
                 data: students
             });
-
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching students:', error);
-            next(error);
+            return c.json({ success: false, error: 'Internal Server Error', message: error.message }, 500);
         }
     };
 
-    // Get student by ID - This matches the profile page data structure
-    getStudentById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Get student by ID
+    getStudentById = async (c: Context) => {
         try {
-            const { id } = req.params;
-            const studentId = parseInt(id || '', 10);
+            const id = c.req.param('id');
+            if (!id) return c.json({ error: 'Invalid student ID' }, 400);
 
-            if (isNaN(studentId) || studentId <= 0) {
-                res.status(400).json({
-                    error: 'Invalid student ID',
-                    message: 'Student ID must be a positive integer'
-                });
-                return;
-            }
-
-            console.log(`Fetching student with ID: ${studentId}`);
-
-            const student = await this.studentsService.getStudentById(studentId);
-
-            if (!student) {
-                res.status(404).json({
+            const student = await studentsService.getStudentById(id);
+            return c.json({ success: true, data: student });
+        } catch (error: any) {
+            if (error.message === 'Student not found') {
+                return c.json({
                     error: 'Student not found',
-                    message: `Student with ID ${studentId} not found or inactive`
-                });
-                return;
+                    message: `Student with ID ${c.req.param('id')} not found or inactive`
+                }, 404);
             }
-
-            console.log(`Retrieved student: ${student.StudentName}`);
-
-            // Structure the response 
-            res.json({
-                success: true,
-                data: {
-                    ...student,
-                    // Add any additional fields needed for the profile page
-                    StudentInfo: {
-                        StudentID: student.StudentID,
-                        StudentName: student.StudentName,
-                        StudentNumber: student.StudentNumber,
-                        RiskLevel: student.RiskLevel,
-                        GPA: student.GPA,
-                        YearOfStudy: student.YearOfStudy,
-                        ContactEmail: student.ContactEmail,
-                        ContactPhone: student.ContactPhone,
-                        EmergencyContact: student.EmergencyContact,
-                        EmergencyPhone: student.EmergencyPhone,
-                        DateEnrolled: student.DateEnrolled,
-                        LastLoginDate: student.LastLoginDate
-                    },
-                    UniversityInfo: {
-                        UniversityID: student.UniversityID,
-                        UniversityName: student.UniversityName
-                    },
-                    ProgramInfo: {
-                        ProgramID: student.ProgramID,
-                        ProgramName: student.ProgramName
-                    }
-                }
-            });
-
-        } catch (error) {
-            if (error instanceof Error && error.message === 'Student not found') {
-                res.status(404).json({
-                    error: 'Student not found',
-                    message: `Student with ID ${req.params.id} not found or inactive`
-                });
-                return;
-            }
-            
-            console.error('Error fetching student by ID:', error);
-            next(error);
+            return c.json({ success: false, error: 'Internal Server Error' }, 500);
         }
     };
 
     // Get students by risk level
-    getStudentsByRiskLevel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    getStudentsByRiskLevel = async (c: Context) => {
         try {
-            const { level } = req.params;
-            
-            // Validate risk level
+            const level = c.req.param('level');
             const validRiskLevels = ['Safe', 'At Risk', 'Critical'];
-            if (typeof level !== 'string' || !validRiskLevels.includes(level)) {
-                res.status(400).json({
+            if (!level || !validRiskLevels.includes(level)) {
+                return c.json({
                     error: 'Invalid risk level',
                     message: 'Risk level must be one of: Safe, At Risk, Critical'
-                });
-                return;
+                }, 400);
             }
 
-            console.log(`Fetching students with risk level: ${level}`);
+            const students = await studentsService.getStudentsByRiskLevel(level as 'Safe' | 'At Risk' | 'Critical');
 
-            const students = await this.studentsService.getStudentsByRiskLevel(level as 'Safe' | 'At Risk' | 'Critical');
-
-            console.log(`Retrieved ${students.length} students with risk level: ${level}`);
-
-            res.json({
+            return c.json({
                 success: true,
                 count: students.length,
                 riskLevel: level,
                 data: students
             });
-
-        } catch (error) {
-            console.error('Error fetching students by risk level:', error);
-            next(error);
+        } catch (error: any) {
+            return c.json({ success: false, error: 'Internal Server Error' }, 500);
         }
     };
 
     // Get student statistics
-    getStudentStatistics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    getStudentStatistics = async (c: Context) => {
         try {
-            console.log('Fetching student statistics...');
-
-            const statistics = await this.studentsService.getStudentStatistics();
-
-            console.log('Student statistics calculated successfully');
-
-            res.json({
+            const statistics = await studentsService.getStudentStatistics();
+            return c.json({
                 success: true,
                 data: statistics,
                 generatedAt: new Date().toISOString()
             });
-
-        } catch (error) {
-            console.error('Error fetching student statistics:', error);
-            next(error);
+        } catch (error: any) {
+            return c.json({ success: false, error: 'Internal Server Error' }, 500);
         }
     };
 
     // Update student risk level
-    updateStudentRiskLevel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    updateStudentRiskLevel = async (c: Context) => {
         try {
-            const { id } = req.params;
-            const { riskLevel, reason } = req.body;
-            const studentId = parseInt(id || '', 10);
+            const id = c.req.param('id');
+            const body = await c.req.json();
+            const { riskLevel, reason } = body;
 
-            if (isNaN(studentId) || studentId <= 0) {
-                res.status(400).json({
-                    error: 'Invalid student ID',
-                    message: 'Student ID must be a positive integer'
-                });
-                return;
-            }
+            if (!id) return c.json({ error: 'Invalid student ID' }, 400);
 
-            console.log(`Updating risk level for student ${studentId} to ${riskLevel}`);
+            const result = await studentsService.updateStudentRiskLevel(id, riskLevel, reason);
 
-            const result = await this.studentsService.updateStudentRiskLevel(studentId, riskLevel, reason);
-
-            console.log(`Successfully updated student ${studentId} risk level`);
-
-            res.json({
+            return c.json({
                 success: true,
                 message: 'Student risk level updated successfully',
                 data: result
             });
-
-        } catch (error) {
-            if (error instanceof Error) {
-                if (error.message === 'Student not found') {
-                    res.status(404).json({
-                        error: 'Student not found',
-                        message: `Student with ID ${req.params.id} not found or inactive`
-                    });
-                    return;
-                } else if (error.message.includes('No change required')) {
-                    res.status(400).json({
-                        error: 'No change required',
-                        message: error.message
-                    });
-                    return;
-                }
+        } catch (error: any) {
+            if (error.message === 'Student not found') {
+                return c.json({
+                    error: 'Student not found',
+                    message: `Student with ID ${c.req.param('id')} not found or inactive`
+                }, 404);
+            } else if (error.message.includes('No change required')) {
+                return c.json({ error: 'No change required', message: error.message }, 400);
             }
-            
-            console.error('Error updating student risk level:', error);
-            next(error);
+            return c.json({ success: false, error: 'Internal Server Error' }, 500);
         }
     };
 }
 
 export const studentsController = new StudentsController();
-
-

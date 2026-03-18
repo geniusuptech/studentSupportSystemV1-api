@@ -1,9 +1,11 @@
 export interface Coordinator {
-    CoordinatorID: number;
-    CoordinatorName: string;
-    ContactEmail: string;
-    ContactPhone?: string;
-    UniversityID: number;
-    CreatedAt: string;
-    UpdatedAt: string;
+  id: string;
+  name: string;
+  email: string;
+  department?: string;
+  phone?: string;
+  role: string;
+  avatarUrl?: string;
+  createdAt: string;
+  updatedAt: string;
 }

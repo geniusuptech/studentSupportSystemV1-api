@@ -1,27 +1,35 @@
 import { Context } from 'hono';
-import { dbContext } from '../config/database';
 
 /**
  * Adapter to allow Express-style controller methods to work with Hono
  * This handles the mapping of req, res, and next.
  */
 export const expressToHono = (handler: any) => {
-    return async (c: Context) => {
+    return async (c: Context, honoNext?: any) => {
         // 1. Mock the Request object
+        // Use a cache for the body to prevent multiple reads of the stream
+        const cachedBody = (c as any)._cachedBody;
+        const body = cachedBody || await (async () => {
+            if (['GET', 'HEAD'].includes(c.req.method)) return {};
+            try {
+                const b = await c.req.json();
+                (c as any)._cachedBody = b;
+                return b;
+            } catch {
+                return {};
+            }
+        })();
+
         const req: any = {
             params: c.req.param(),
             query: c.req.query(),
-            body: await (async () => {
-                try {
-                    return await c.req.json();
-                } catch {
-                    return {};
-                }
-            })(),
+            body: body,
             headers: c.req.header(),
             method: c.req.method,
             path: c.req.path,
             url: c.req.url,
+            // Carry over user state from previous middleware if it exists
+            user: (c as any).user || null
         };
 
         // 2. Mock the Response object
@@ -47,7 +55,8 @@ export const expressToHono = (handler: any) => {
             end: () => {
                 isFinished = true;
                 return res;
-            }
+            },
+            locals: {}
         };
 
         // 3. Mock Next function
@@ -76,20 +85,12 @@ export const expressToHono = (handler: any) => {
             return c.text(responseBody, status as any);
         }
 
-        return c.text('Not Found', 404);
-    };
-};
-
-/**
- * Middleware to set the D1 database instance in AsyncLocalStorage
- */
-export const d1Middleware = () => {
-    return async (c: Context, next: any) => {
-        const db = c.env.DB as D1Database;
-        if (!db) {
-            console.error('D1 Database binding (env.DB) not found!');
-            return c.text('Internal Server Error: DB not bound', 500);
+        if (nextCalled && honoNext) {
+            // Pass state (like req.user) from mock req to Hono context
+            if (req.user) (c as any).user = req.user;
+            return await honoNext();
         }
-        return dbContext.run(db, next);
+
+        return c.text('Not Found', 404);
     };
 };

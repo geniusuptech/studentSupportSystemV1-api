@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { dashboardController } from '../controllers/dashboardController';
-import { expressToHono } from '../utils/hono-express-adapter';
 
 const router = new Hono();
-router.get('/students/export', expressToHono(dashboardController.exportStudents));
+router.get('/students/export', (c) => dashboardController.exportStudents(c));
 export default router;

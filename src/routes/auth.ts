@@ -1,75 +1,26 @@
 import { Hono } from 'hono';
-import { AuthController } from '../controllers/authController';
+import { authController } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
-import { expressToHono } from '../utils/hono-express-adapter';
 
 const router = new Hono();
-const authController = new AuthController();
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     LoginRequest:
- *       type: object
- *       required: [email, password]
- *       properties:
- *         email: { type: string, format: email }
- *         password: { type: string, format: password }
- *     LoginResponse:
- *       type: object
- *       properties:
- *         success: { type: boolean }
- *         token: { type: string }
- *         user: { type: object }
- */
+// POST /api/auth/login
+router.post('/login', (c) => authController.login(c));
 
-/**
- * @swagger
- * /auth/login:
- *   post:
- *     summary: User login
- *     tags: [Authentication]
- */
-router.post('/login', expressToHono(AuthController.validateLogin), expressToHono(authController.login));
+// POST /api/auth/register
+router.post('/register', (c) => authController.register(c));
 
-/**
- * @swagger
- * /auth/register:
- *   post:
- *     summary: User registration
- *     tags: [Authentication]
- */
-router.post('/register', expressToHono(AuthController.validateRegister), expressToHono(authController.register));
+// GET /api/auth/me
+router.get('/me', authenticateToken, (c) => authController.getCurrentUser(c));
+router.get('/profile', authenticateToken, (c) => authController.getCurrentUser(c));
 
-/**
- * @swagger
- * /auth/me:
- *   get:
- *     summary: Get current user
- *     tags: [Authentication]
- */
-router.get('/me', expressToHono(authenticateToken), expressToHono(authController.getCurrentUser));
+// POST /api/auth/change-password
+router.post('/change-password', authenticateToken, (c) => authController.changePassword(c));
 
-/**
- * @swagger
- * /auth/change-password:
- *   post:
- *     summary: Change password
- *     tags: [Authentication]
- */
-router.post('/change-password', expressToHono(authenticateToken), expressToHono(AuthController.validatePasswordChange), expressToHono(authController.changePassword));
+router.post('/logout', (c) => authController.logout(c));
+router.get('/validate-token', (c) => authController.validateToken(c));
 
-router.post('/logout', expressToHono(authController.logout));
-router.get('/validate-token', expressToHono(authController.validateToken));
+// POST /api/auth/deactivate
+router.post('/deactivate', authenticateToken, (c) => authController.deactivateAccount(c));
 
-/**
- * @swagger
- * /auth/deactivate:
- *   post:
- *     summary: Deactivate account
- *     tags: [Authentication]
- */
-router.post('/deactivate', expressToHono(authenticateToken), expressToHono(authController.deactivateAccount));
-
-export default router;
+export default router;

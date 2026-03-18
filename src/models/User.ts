@@ -1,20 +1,20 @@
 export interface User {
-    UserID: number;
-    Email: string;
-    PasswordHash: string;
-    UserType: 'Student' | 'Coordinator' | 'Partner' | 'Admin';
-    FirstName: string;
-    LastName: string;
-    ProfilePictureURL?: string;
-    IsActive: boolean;
-    IsEmailVerified: boolean;
-    LastLoginDate?: Date;
-    CreatedAt: Date;
-    UpdatedAt: Date;
+    id: string;
+    email: string;
+    passwordHash: string;
+    role: 'student' | 'partner' | 'coordinator' | 'admin';
+    firstName: string;
+    lastName: string;
+    profilePictureUrl?: string;
+    isActive: boolean;
+    isEmailVerified: boolean;
+    lastLoginAt?: string;
+    createdAt: string;
+    updatedAt: string;
     // Related entity IDs
-    StudentID?: number;
-    CoordinatorID?: number;
-    PartnerID?: number;
+    studentId?: string;
+    coordinatorId?: string;
+    partnerId?: string;
 }
 
 export interface LoginRequest {
@@ -26,17 +26,18 @@ export interface LoginResponse {
     success: boolean;
     message: string;
     user?: {
-        UserID: number;
-        Email: string;
-        UserType: string;
-        FirstName: string;
-        LastName: string;
-        ProfilePictureURL?: string;
-        StudentID?: number;
-        CoordinatorID?: number;
-        PartnerID?: number;
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        profilePictureUrl?: string;
+        studentId?: string;
+        coordinatorId?: string;
+        partnerId?: string;
     };
     token?: string;
+    refreshToken?: string;
     expiresIn?: string;
 }
 
@@ -46,21 +47,23 @@ export interface RegisterRequest {
     confirmPassword: string;
     firstName: string;
     lastName: string;
-    userType: 'Student' | 'Coordinator' | 'Partner';
-    studentID?: number;
-    coordinatorID?: number;
-    partnerID?: number;
+    userType: 'student' | 'partner' | 'coordinator';
+    studentID?: string;
+    coordinatorID?: string;
+    partnerID?: string;
 }
 
 export interface AuthTokenPayload {
-    userID: number;
+    userID: string;
     email: string;
     userType: string;
     firstName: string;
     lastName: string;
-    studentID?: number;
-    coordinatorID?: number;
-    partnerID?: number;
+    studentID?: string;
+    coordinatorID?: string;
+    partnerID?: string;
+    exp?: number;
+    [key: string]: any;
 }
 
 export interface PasswordResetRequest {

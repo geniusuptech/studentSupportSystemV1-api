@@ -32,161 +32,86 @@ interface UpdateRiskLevelResult {
 export class StudentsService {
   async getAllStudents(filters: any): Promise<(Student & { ActiveRequestCount: number })[]> {
     const students = await studentsRepository.getAllStudents(filters);
-    return students.map((student: Student) => ({
-      ...student,
-      ActiveRequestCount: 0 // Replace 0 with actual logic if needed
+    
+    // For production ready, we could fetch actual counts
+    const data = await Promise.all(students.map(async (student: Student) => {
+      const query = `SELECT COUNT(*) as count FROM SupportRequests WHERE StudentID = @id AND Status IN ('Open', 'In Progress')`;
+      const results = await databaseService.executeQuery(query, { id: student.id });
+      return {
+        ...student,
+        ActiveRequestCount: results[0].count || 0
+      };
     }));
+    return data;
   }
 
-  async getStudentById(id: number): Promise<Student | undefined> {
+  async getStudentById(id: string | number): Promise<Student> {
     const student = await studentsRepository.getStudentById(id);
-    if (!student.length) throw new Error('Student not found');
-    return student[0];
+    if (!student) throw new Error('Student not found');
+    return student;
   }
 
   async getStudentsByRiskLevel(riskLevel: 'Safe' | 'At Risk' | 'Critical'): Promise<Student[]> {
     return await studentsRepository.getStudentsByRiskLevel(riskLevel);
   }
 
-  async getStudentsByUniversity(universityId: number): Promise<Student[]> {
-    return await studentsRepository.getStudentsByUniversity(universityId);
-  }
-
-  async getStudentsByProgram(programId: number): Promise<Student[]> {
-    return await studentsRepository.getStudentsByProgram(programId);
-  }
-
   async getStudentStatistics(): Promise<StudentStatistics> {
-    // Get total students and risk level breakdown
-    const riskStatsQuery = `
-      SELECT
-        COUNT(*) as TotalStudents,
-        SUM(CASE WHEN RiskLevel = 'Safe' THEN 1 ELSE 0 END) as SafeCount,
-        SUM(CASE WHEN RiskLevel = 'At Risk' THEN 1 ELSE 0 END) as AtRiskCount,
-        SUM(CASE WHEN RiskLevel = 'Critical' THEN 1 ELSE 0 END) as CriticalCount,
-        AVG(CAST(GPA as FLOAT)) as AverageGPA
-      FROM Students
-      WHERE IsActive = 1
+    const query = `
+        SELECT RiskLevel, GPA, YearOfStudy, UniversityName, ProgramName
+        FROM vw_StudentDetails
+        WHERE IsActive = 1
     `;
+    const students = await databaseService.executeQuery(query);
 
-    // Get university distribution
-    const universityStatsQuery = `
-      SELECT u.UniversityName, COUNT(s.StudentID) as StudentCount
-      FROM Students s
-      LEFT JOIN Universities u ON s.UniversityID = u.UniversityID
-      WHERE s.IsActive = 1
-      GROUP BY u.UniversityName
-      ORDER BY StudentCount DESC
-    `;
+    const total = students.length;
+    const gpas = students.map((s: any) => parseFloat(s.GPA) || 0);
+    const avgGPA = total > 0 ? gpas.reduce((a: number, b: number) => a + b, 0) / total : 0;
 
-    // Get program distribution
-    const programStatsQuery = `
-      SELECT p.ProgramName, COUNT(s.StudentID) as StudentCount
-      FROM Students s
-      LEFT JOIN Programs p ON s.ProgramID = p.ProgramID
-      WHERE s.IsActive = 1
-      GROUP BY p.ProgramName
-      ORDER BY StudentCount DESC
-    `;
-
-    // Get year distribution
-    const yearStatsQuery = `
-      SELECT YearOfStudy, COUNT(*) as StudentCount
-      FROM Students
-      WHERE IsActive = 1
-      GROUP BY YearOfStudy
-      ORDER BY YearOfStudy ASC
-    `;
-
-    const [riskStats, universityStats, programStats, yearStats] = await Promise.all([
-      databaseService.executeQuery(riskStatsQuery),
-      databaseService.executeQuery(universityStatsQuery),
-      databaseService.executeQuery(programStatsQuery),
-      databaseService.executeQuery(yearStatsQuery)
-    ]);
-
-    const stats = riskStats[0];
-
-    return {
-      totalStudents: stats.TotalStudents || 0,
+    const stats: StudentStatistics = {
+      totalStudents: total,
       riskLevels: {
-        safe: stats.SafeCount || 0,
-        atRisk: stats.AtRiskCount || 0,
-        critical: stats.CriticalCount || 0
+        safe: students.filter((s: any) => s.RiskLevel === 'Safe').length,
+        atRisk: students.filter((s: any) => s.RiskLevel === 'At Risk').length,
+        critical: students.filter((s: any) => s.RiskLevel === 'Critical').length
       },
-      averageGPA: Math.round((stats.AverageGPA || 0) * 100) / 100,
-      universities: universityStats.reduce((acc: any, item: any) => {
-        acc[item.UniversityName] = item.StudentCount;
-        return acc;
-      }, {}),
-      programs: programStats.reduce((acc: any, item: any) => {
-        acc[item.ProgramName] = item.StudentCount;
-        return acc;
-      }, {}),
-      yearDistribution: yearStats.reduce((acc: any, item: any) => {
-        acc[`Year ${item.YearOfStudy}`] = item.StudentCount;
-        return acc;
-      }, {})
+      averageGPA: Math.round(avgGPA * 100) / 100,
+      universities: {},
+      programs: {},
+      yearDistribution: {}
     };
-  }
 
-  async updateStudentRiskLevel(studentId: number, riskLevel: string, reason?: string): Promise<UpdateRiskLevelResult> {
-    // First check if student exists
-    const checkQuery = `
-      SELECT StudentID, StudentName, RiskLevel
-      FROM Students
-      WHERE StudentID = @studentId AND IsActive = 1
-    `;
+    students.forEach((s: any) => {
+        const uniName = s.UniversityName || 'Unknown';
+        stats.universities[uniName] = (stats.universities[uniName] || 0) + 1;
 
-    const existingStudent = await databaseService.executeQuery(checkQuery, { studentId });
+        const progName = s.ProgramName || 'Unknown';
+        stats.programs[progName] = (stats.programs[progName] || 0) + 1;
 
-    if (existingStudent.length === 0) {
-      throw new Error('Student not found');
-    }
-
-    const currentRiskLevel = existingStudent[0].RiskLevel;
-
-    if (currentRiskLevel === riskLevel) {
-      throw new Error(`No change required: Student ${existingStudent[0].StudentName} is already at ${riskLevel} risk level`);
-    }
-
-    // Update the risk level
-    const updateQuery = `
-      UPDATE Students
-      SET RiskLevel = @riskLevel, UpdatedAt = GETDATE()
-      WHERE StudentID = @studentId
-    `;
-
-    await databaseService.executeQuery(updateQuery, {
-      studentId,
-      riskLevel
+        const yearLabel = s.YearOfStudy ? `Year ${s.YearOfStudy}` : 'Unknown';
+        stats.yearDistribution[yearLabel] = (stats.yearDistribution[yearLabel] || 0) + 1;
     });
 
-    // Get updated student data
-    const updatedStudentQuery = `
-      SELECT
-        s.StudentID,
-        s.StudentName,
-        s.StudentNumber,
-        s.RiskLevel,
-        s.GPA,
-        u.UniversityName,
-        p.ProgramName,
-        s.UpdatedAt
-      FROM Students s
-      LEFT JOIN Universities u ON s.UniversityID = u.UniversityID
-      LEFT JOIN Programs p ON s.ProgramID = p.ProgramID
-      WHERE s.StudentID = @studentId
-    `;
+    return stats;
+  }
 
-    const updatedStudent = await databaseService.executeQuery(updatedStudentQuery, { studentId });
+  async updateStudentRiskLevel(studentId: string | number, riskLevel: string, reason?: string): Promise<UpdateRiskLevelResult> {
+    const existing = await studentsRepository.getStudentById(studentId);
+    if (!existing) throw new Error('Student not found');
+
+    const currentRiskLevel = existing.risk;
+    const updatedAt = new Date().toISOString();
+    await studentsRepository.updateRiskLevel(studentId, riskLevel, updatedAt);
+    
+    const updated = await studentsRepository.getStudentById(studentId);
 
     return {
-      student: updatedStudent[0],
+      student: updated,
       previousRiskLevel: currentRiskLevel,
       newRiskLevel: riskLevel,
       reason: reason || 'No reason provided',
-      updatedAt: new Date().toISOString()
+      updatedAt: updatedAt
     };
   }
 }
+
+export const studentsService = new StudentsService();

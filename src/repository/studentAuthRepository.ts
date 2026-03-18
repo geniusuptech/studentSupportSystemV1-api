@@ -1,119 +1,72 @@
 import databaseService from '../config/database';
 
-export interface StudentLogin {
-  LoginID: number;
-  StudentID: number;
-  Email: string;
-  PasswordHash: string;
-  IsActive: boolean;
-  LastLoginAt: Date | null;
-  FailedLoginAttempts: number;
-  LockedUntil: Date | null;
-  PasswordResetToken: string | null;
-  PasswordResetExpires: Date | null;
-  CreatedAt: Date;
-  UpdatedAt: Date;
-}
-
-export interface StudentLoginWithDetails extends StudentLogin {
-  StudentName: string;
-  StudentNumber: string;
-  UniversityID: number;
-  UniversityName: string;
-  ProgramID: number;
-  ProgramName: string;
-  RiskLevel: string;
+export interface StudentLoginWithDetails {
+  id: string | number;
+  email: string;
+  passwordHash: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  studentId: string | number;
+  studentName: string;
+  studentNumber: string;
+  universityId: string | number;
+  universityName: string;
+  programId: string | number;
+  programName: string;
+  risk: string;
 }
 
 export class StudentAuthRepository {
   async findByEmail(email: string): Promise<StudentLoginWithDetails | null> {
     const query = `
-      SELECT 
-        sl.LoginID,
-        sl.StudentID,
-        sl.Email,
-        sl.PasswordHash,
-        sl.IsActive,
-        sl.LastLoginAt,
-        sl.FailedLoginAttempts,
-        sl.LockedUntil,
-        sl.CreatedAt,
-        sl.UpdatedAt,
-        s.StudentName,
-        s.StudentNumber,
-        s.UniversityID,
-        u.UniversityName,
-        s.ProgramID,
-        p.ProgramName,
-        s.RiskLevel
-      FROM StudentLogins sl
-      JOIN Students s ON sl.StudentID = s.StudentID
-      JOIN Universities u ON s.UniversityID = u.UniversityID
-      JOIN Programs p ON s.ProgramID = p.ProgramID
-      WHERE sl.Email = @email AND s.IsActive = 1
+      SELECT u.*, s.StudentName, s.StudentNumber, s.UniversityID, s.ProgramID, s.RiskLevel,
+             univ.UniversityName, prog.ProgramName
+      FROM Users u
+      JOIN Students s ON u.StudentID = s.StudentID
+      JOIN Universities univ ON s.UniversityID = univ.UniversityID
+      JOIN Programs prog ON s.ProgramID = prog.ProgramID
+      WHERE u.Email = @email AND u.UserType = 'Student' AND u.IsActive = 1 AND s.IsActive = 1
     `;
-    const result = await databaseService.executeQuery<StudentLoginWithDetails>(query, { email });
-    return result.length > 0 ? result[0] as StudentLoginWithDetails : null;
+    const data = await databaseService.executeQuery(query, { email });
+
+    if (data.length === 0) return null;
+
+    const row = data[0];
+    return {
+      id: row.UserID,
+      email: row.Email,
+      passwordHash: row.PasswordHash,
+      isActive: row.IsActive,
+      lastLoginAt: row.LastLoginDate,
+      studentId: row.StudentID,
+      studentName: row.StudentName,
+      studentNumber: row.StudentNumber,
+      universityId: row.UniversityID,
+      universityName: row.UniversityName,
+      programId: row.ProgramID,
+      programName: row.ProgramName,
+      risk: row.RiskLevel
+    };
   }
 
-  async updateLastLogin(loginId: number): Promise<void> {
-    const query = `
-      UPDATE StudentLogins 
-      SET LastLoginAt = GETDATE(), 
-          FailedLoginAttempts = 0,
-          LockedUntil = NULL,
-          UpdatedAt = GETDATE()
-      WHERE LoginID = @loginId
-    `;
-    await databaseService.executeQuery(query, { loginId });
+  async updateLastLogin(id: string | number): Promise<void> {
+    const query = `UPDATE Users SET LastLoginDate = CURRENT_TIMESTAMP, UpdatedAt = CURRENT_TIMESTAMP WHERE UserID = @id`;
+    await databaseService.executeQuery(query, { id });
   }
 
-  async incrementFailedAttempts(loginId: number): Promise<number> {
+  async createLogin(studentId: string | number, email: string, passwordHash: string): Promise<string | number> {
     const query = `
-      UPDATE StudentLogins 
-      SET FailedLoginAttempts = FailedLoginAttempts + 1,
-          UpdatedAt = GETDATE()
-      OUTPUT INSERTED.FailedLoginAttempts
-      WHERE LoginID = @loginId
+      INSERT INTO Users (Email, PasswordHash, UserType, FirstName, LastName, StudentID, IsActive, CreatedAt, UpdatedAt)
+      VALUES (@email, @passwordHash, 'Student', '', '', @studentId, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING UserID
     `;
-    const result = await databaseService.executeQuery<{ FailedLoginAttempts: number }>(query, { loginId });
-    return result[0]?.FailedLoginAttempts || 0;
+    const result = await databaseService.executeQuery(query, { email, passwordHash, studentId });
+    return result[0].UserID;
   }
 
-  async lockAccount(loginId: number, lockUntil: Date): Promise<void> {
-    const query = `
-      UPDATE StudentLogins 
-      SET LockedUntil = @lockUntil,
-          UpdatedAt = GETDATE()
-      WHERE LoginID = @loginId
-    `;
-    await databaseService.executeQuery(query, { loginId, lockUntil });
-  }
-
-  async createLogin(studentId: number, email: string, passwordHash: string): Promise<number> {
-    const query = `
-      INSERT INTO StudentLogins (StudentID, Email, PasswordHash)
-      OUTPUT INSERTED.LoginID
-      VALUES (@studentId, @email, @passwordHash)
-    `;
-    const result = await databaseService.executeQuery<{ LoginID: number }>(query, {
-      studentId,
-      email,
-      passwordHash
-    });
-    return result[0]!.LoginID;
-  }
-
-  async updatePassword(loginId: number, passwordHash: string): Promise<void> {
-    const query = `
-      UPDATE StudentLogins 
-      SET PasswordHash = @passwordHash,
-          PasswordResetToken = NULL,
-          PasswordResetExpires = NULL,
-          UpdatedAt = GETDATE()
-      WHERE LoginID = @loginId
-    `;
-    await databaseService.executeQuery(query, { loginId, passwordHash });
+  async updatePassword(id: string | number, passwordHash: string): Promise<void> {
+    const query = `UPDATE Users SET PasswordHash = @passwordHash, UpdatedAt = CURRENT_TIMESTAMP WHERE UserID = @id`;
+    await databaseService.executeQuery(query, { id, passwordHash });
   }
 }
 

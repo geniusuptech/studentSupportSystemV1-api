@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { studentsController } from '../controllers/studentsController';
-import { expressToHono } from '../utils/hono-express-adapter';
 
 const router = new Hono();
 
@@ -22,7 +21,8 @@ const router = new Hono();
  *       200:
  *         description: A list of students
  */
-router.get('/', expressToHono(studentsController.getAllStudents));
+// GET /api/students
+router.get('/', (c) => studentsController.getAllStudents(c));
 
 /**
  * @swagger
@@ -31,7 +31,8 @@ router.get('/', expressToHono(studentsController.getAllStudents));
  *     summary: Get students by risk level
  *     tags: [Students]
  */
-router.get('/risk/:level', expressToHono(studentsController.getStudentsByRiskLevel));
+// GET /api/students/risk/:level
+router.get('/risk/:level', (c) => studentsController.getStudentsByRiskLevel(c));
 
 /**
  * @swagger
@@ -40,7 +41,8 @@ router.get('/risk/:level', expressToHono(studentsController.getStudentsByRiskLev
  *     summary: Get student statistics
  *     tags: [Students]
  */
-router.get('/statistics', expressToHono(studentsController.getStudentStatistics));
+// GET /api/students/statistics
+router.get('/statistics', (c) => studentsController.getStudentStatistics(c));
 
 /**
  * @swagger
@@ -49,7 +51,8 @@ router.get('/statistics', expressToHono(studentsController.getStudentStatistics)
  *     summary: Update student risk level
  *     tags: [Students]
  */
-router.put('/:id/risk', expressToHono(studentsController.updateStudentRiskLevel));
+// PUT /api/students/:id/risk
+router.put('/:id/risk', (c) => studentsController.updateStudentRiskLevel(c));
 
 /**
  * @swagger
@@ -58,6 +61,7 @@ router.put('/:id/risk', expressToHono(studentsController.updateStudentRiskLevel)
  *     summary: Get student by ID
  *     tags: [Students]
  */
-router.get('/:id', expressToHono(studentsController.getStudentById));
+// GET /api/students/:id
+router.get('/:id', (c) => studentsController.getStudentById(c));
 
 export default router;

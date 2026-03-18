@@ -1,13 +1,14 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { d1Middleware } from './utils/hono-express-adapter';
 
 // Import route definitions
 import studentsRoutes from './routes/students';
 import studentAuthRoutes from './routes/studentAuth';
 import supportRequestsRoutes from './routes/support-requests';
 import partnersRoutes from './routes/partners';
+import { authController } from './controllers/authController';
+import { authService } from './services/authServices';
 import authRoutes from './routes/auth';
 import dashboardRoutes from './routes/dashboard';
 import universitiesRoutes from './routes/universities';
@@ -15,18 +16,27 @@ import programsRoutes from './routes/programs';
 import riskLevelsRoutes from './routes/riskLevels';
 import interventionsRoutes from './routes/interventions';
 import reportsRoutes from './routes/reports';
+import messagesRoutes from './routes/messages';
 
-const app = new Hono<{ Bindings: { DB: D1Database } }>();
+// Import services and config
+import { swaggerSpec } from './config/swagger';
+import databaseService from './config/database';
+
+const app = new Hono();
 
 // Middlewares
 app.use('*', logger());
 app.use('*', cors({
-  origin: '*', // Adjust for production
+  origin: '*', 
   credentials: true,
 }));
 
-// Apply D1 Database context to all requests
-app.use('*', d1Middleware());
+// Initialize Database config from Worker Env
+app.use('*', async (c, next) => {
+  databaseService.setDB(c.env.DB);
+  authService.setSecret(c.env.JWT_SECRET || 'your-secret-key-change-in-production');
+  await next();
+});
 
 // Health check
 app.get('/api/health', (c) => {
@@ -34,23 +44,80 @@ app.get('/api/health', (c) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: 'production',
-    platform: 'Cloudflare Workers (D1)',
-    version: '1.0.0'
+    platform: 'Cloudflare Workers (MSSQL)',
+    version: '1.2.0',
+    setupRequired: !databaseService.isConfigured()
   });
+});
+
+// Home endpoint
+app.get('/', (c) => {
+  return c.json({
+    message: 'Student Wellness Dashboard API is LIVE (Cloudflare D1)',
+    version: '1.2.0',
+    documentation: '/api-docs',
+    health: '/api/health',
+    status: 'Ready'
+  });
+});
+
+/**
+ * Swagger Documentation UI
+ * Serves a static HTML page that loads Swagger UI from CDN and uses the spec from /api-docs.json
+ */
+app.get('/api-docs', (c) => {
+  return c.html(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Student Wellness API Documentation</title>
+      <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+      <style>
+        html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+        *, *:before, *:after { box-sizing: inherit; }
+        body { margin: 0; background: #fafafa; }
+      </style>
+    </head>
+    <body>
+      <div id="swagger-ui"></div>
+      <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script>
+      <script>
+        window.onload = () => {
+          window.ui = SwaggerUIBundle({
+            url: '/api-docs.json',
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            presets: [SwaggerUIBundle.presets.apis],
+          });
+        };
+      </script>
+    </body>
+    </html>
+  `);
+});
+
+// Swagger JSON Spec
+app.get('/api-docs.json', (c) => {
+  return c.json(swaggerSpec);
 });
 
 // Root endpoint
 app.get('/', (c) => {
   return c.json({
-    message: 'Student Wellness Dashboard API (Cloudflare Worker)',
+    message: 'Student Wellness Dashboard API is LIVE',
     version: '1.0.0',
-    documentation: '/api/health'
+    documentation: '/api-docs',
+    health: '/api/health',
+    status: 'Ready'
   });
 });
 
-// Register API Routes
-app.route('/api/students', studentsRoutes);
+// Register API Routes - Order matters for overlapping paths!
+// More specific routes must come BEFORE more general ones
 app.route('/api/students/auth', studentAuthRoutes);
+app.route('/api/students', studentsRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api/support-requests', supportRequestsRoutes);
 app.route('/api/partners', partnersRoutes);
@@ -60,5 +127,25 @@ app.route('/api/programs', programsRoutes);
 app.route('/api/risk-levels', riskLevelsRoutes);
 app.route('/api/interventions', interventionsRoutes);
 app.route('/api/reports', reportsRoutes);
+app.route('/api/messages', messagesRoutes);
+
+// Global Error Handler
+app.onError((err, c) => {
+  console.error(`[API Error] ${err.message}`);
+  return c.json({
+    success: false,
+    error: 'Internal Server Error',
+    message: err.message
+  }, 500);
+});
+
+// 404 Not Found Handler
+app.notFound((c) => {
+  return c.json({
+    success: false,
+    error: 'Not Found',
+    message: `Path ${c.req.path} not found`
+  }, 404);
+});
 
 export default app;

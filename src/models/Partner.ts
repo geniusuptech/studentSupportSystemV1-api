@@ -1,17 +1,18 @@
 export interface Partner {
-  PartnerID: number;
-  PartnerName: string;
-  PartnerType: string;
-  Specialization: string;
-  ContactEmail: string;
-  ContactPhone?: string;
-  IsAvailable: boolean;
-  MaxCapacity: number;
-  CurrentWorkload: number;
-  Rating: number;
-  YearsOfExperience: number;
-  HourlyRate?: number;
-  Location?: string;
-  CreatedAt: string;
-  UpdatedAt: string;
+  id: string;
+  name: string;
+  type: 'Individual' | 'Organization';
+  role: string;
+  specialization: string;
+  status: string;
+  rating: number;
+  ratingCount: number;
+  activeClients: number;
+  defaultRate: number;
+  email: string;
+  phone?: string;
+  website?: string;
+  imageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
 }

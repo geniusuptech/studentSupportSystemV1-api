@@ -15,91 +15,82 @@ export interface RiskDistribution {
 }
 
 export interface Intervention {
-  InterventionID: number;
-  StudentID: number;
-  StudentName?: string;
-  InterventionType: string;
-  Description: string | null;
-  Status: string;
-  Priority: string;
-  AssignedTo: string | null;
-  Notes: string | null;
-  StartDate: Date;
-  EndDate: Date | null;
-  CreatedAt: Date;
-  UpdatedAt: Date;
+  id: string | number;
+  studentId: string | number;
+  studentName?: string;
+  type: string;
+  notes?: string;
+  status: string;
+  riskLevel: string;
+  dateLogged: string;
+  followUpDate?: string;
+  origin?: string;
+  isStudentRequest?: boolean;
 }
 
 export interface University {
-  UniversityID: number;
-  UniversityName: string;
-  StudentCount?: number;
+  id: string | number;
+  name: string;
+  studentCount?: number;
 }
 
 export interface Program {
-  ProgramID: number;
-  ProgramName: string;
-  StudentCount?: number;
+  id: string | number;
+  name: string;
+  studentCount?: number;
 }
 
 export class DashboardRepository {
   async getSummary(): Promise<DashboardSummary> {
-    const query = `
-      SELECT
-        (SELECT COUNT(*) FROM Students WHERE IsActive = 1) as TotalStudents,
-        (SELECT COUNT(*) FROM Students WHERE IsActive = 1 AND RiskLevel = 'Critical') as CriticalStudents,
-        (SELECT AVG(CAST(GPA as FLOAT)) FROM Students WHERE IsActive = 1) as AverageGPA,
-        (SELECT COUNT(*) FROM Interventions WHERE Status = 'Active') as ActiveInterventions
-    `;
-    const result = await databaseService.executeQuery<{
-      TotalStudents: number;
-      CriticalStudents: number;
-      AverageGPA: number;
-      ActiveInterventions: number;
-    }>(query);
-    
+    const studentsQuery = `SELECT COUNT(*) as total FROM Students WHERE IsActive = 1`;
+    const criticalQuery = `SELECT COUNT(*) as critical FROM Students WHERE RiskLevel = 'Critical' AND IsActive = 1`;
+    const gpaQuery = `SELECT AVG(GPA) as avgGPA FROM Students WHERE IsActive = 1`;
+    const interventionsQuery = `SELECT COUNT(*) as active FROM SupportRequests WHERE Status IN ('Open', 'In Progress')`;
+
+    const results = await Promise.all([
+      databaseService.executeQuery(studentsQuery),
+      databaseService.executeQuery(criticalQuery),
+      databaseService.executeQuery(gpaQuery),
+      databaseService.executeQuery(interventionsQuery)
+    ]);
+
     return {
-      totalStudents: result[0]?.TotalStudents || 0,
-      criticalStudents: result[0]?.CriticalStudents || 0,
-      averageGPA: result[0]?.AverageGPA || 0,
-      activeInterventions: result[0]?.ActiveInterventions || 0
+      totalStudents: results[0][0].total || 0,
+      criticalStudents: results[1][0].critical || 0,
+      averageGPA: Math.round((results[2][0].avgGPA || 0) * 100) / 100,
+      activeInterventions: results[3][0].active || 0
     };
   }
 
   async getRiskDistribution(): Promise<RiskDistribution> {
     const query = `
-      SELECT
-        COUNT(*) as TotalStudents,
-        SUM(CASE WHEN RiskLevel = 'Safe' THEN 1 ELSE 0 END) as SafeCount,
-        SUM(CASE WHEN RiskLevel = 'At Risk' THEN 1 ELSE 0 END) as AtRiskCount,
-        SUM(CASE WHEN RiskLevel = 'Critical' THEN 1 ELSE 0 END) as CriticalCount
-      FROM Students
-      WHERE IsActive = 1
+      SELECT RiskLevel, COUNT(*) as Count 
+      FROM Students 
+      WHERE IsActive = 1 
+      GROUP BY RiskLevel
     `;
-    const result = await databaseService.executeQuery<{
-      TotalStudents: number;
-      SafeCount: number;
-      AtRiskCount: number;
-      CriticalCount: number;
-    }>(query);
+    const data = await databaseService.executeQuery(query);
     
-    const total = result[0]?.TotalStudents || 0;
-    const safeCount = result[0]?.SafeCount || 0;
-    const atRiskCount = result[0]?.AtRiskCount || 0;
-    const criticalCount = result[0]?.CriticalCount || 0;
+    let total = 0;
+    const counts: any = { Safe: 0, 'At Risk': 0, Critical: 0 };
     
+    data.forEach((row: any) => {
+      counts[row.RiskLevel] = row.Count;
+      total += row.Count;
+    });
+
     return {
       safe: {
-        count: safeCount,
-        percentage: total > 0 ? Math.round((safeCount / total) * 100) : 0
+        count: counts.Safe,
+        percentage: total > 0 ? Math.round((counts.Safe / total) * 100) : 0
       },
       atRisk: {
-        count: atRiskCount,
-        percentage: total > 0 ? Math.round((atRiskCount / total) * 100) : 0
+        count: counts['At Risk'],
+        percentage: total > 0 ? Math.round((counts['At Risk'] / total) * 100) : 0
       },
       critical: {
-        count: criticalCount,
-        percentage: total > 0 ? Math.round((criticalCount / total) * 100) : 0
+        count: counts.Critical,
+        percentage: total > 0 ? Math.round((counts.Critical / total) * 100) : 0
       },
       totalStudents: total
     };
@@ -107,112 +98,75 @@ export class DashboardRepository {
 
   async getAllUniversities(): Promise<University[]> {
     const query = `
-      SELECT 
-        u.UniversityID,
-        u.UniversityName,
-        COUNT(s.StudentID) as StudentCount
+      SELECT u.UniversityID as id, u.UniversityName as name, COUNT(s.StudentID) as studentCount
       FROM Universities u
       LEFT JOIN Students s ON u.UniversityID = s.UniversityID AND s.IsActive = 1
       GROUP BY u.UniversityID, u.UniversityName
-      ORDER BY u.UniversityName
     `;
-    return databaseService.executeQuery<University>(query);
+    const data = await databaseService.executeQuery(query);
+    return data;
   }
 
   async getAllPrograms(): Promise<Program[]> {
     const query = `
-      SELECT 
-        p.ProgramID,
-        p.ProgramName,
-        COUNT(s.StudentID) as StudentCount
+      SELECT p.ProgramID as id, p.ProgramName as name, COUNT(s.StudentID) as studentCount
       FROM Programs p
       LEFT JOIN Students s ON p.ProgramID = s.ProgramID AND s.IsActive = 1
       GROUP BY p.ProgramID, p.ProgramName
-      ORDER BY p.ProgramName
     `;
-    return databaseService.executeQuery<Program>(query);
+    const data = await databaseService.executeQuery(query);
+    return data;
   }
 
   async getActiveInterventions(): Promise<Intervention[]> {
     const query = `
-      SELECT 
-        i.InterventionID,
-        i.StudentID,
-        s.StudentName,
-        i.InterventionType,
-        i.Description,
-        i.Status,
-        i.Priority,
-        i.AssignedTo,
-        i.Notes,
-        i.StartDate,
-        i.EndDate,
-        i.CreatedAt,
-        i.UpdatedAt
-      FROM Interventions i
-      JOIN Students s ON i.StudentID = s.StudentID
-      WHERE i.Status = 'Active'
-      ORDER BY 
-        CASE i.Priority 
-          WHEN 'Critical' THEN 1 
-          WHEN 'High' THEN 2 
-          WHEN 'Medium' THEN 3 
-          WHEN 'Low' THEN 4 
-        END,
-        i.CreatedAt DESC
+      SELECT sr.*, s.StudentName
+      FROM SupportRequests sr
+      JOIN Students s ON sr.StudentID = s.StudentID
+      WHERE sr.Status IN ('Open', 'In Progress')
+      ORDER BY sr.CreatedAt DESC
     `;
-    return databaseService.executeQuery<Intervention>(query);
+    const data = await databaseService.executeQuery(query);
+
+    return data.map(i => ({
+        id: i.RequestID,
+        studentId: i.StudentID,
+        studentName: i.StudentName,
+        type: i.Title, // Mapping Title to type for compatibility
+        notes: i.Notes,
+        status: i.Status,
+        riskLevel: i.Priority, // Mapping Priority to riskLevel for compatibility
+        dateLogged: i.CreatedAt,
+        origin: 'System',
+        isStudentRequest: true
+    }));
   }
 
-  async createIntervention(data: {
-    studentId: number;
-    interventionType: string;
-    description?: string;
-    priority?: string;
-    assignedTo?: string;
-    notes?: string;
-  }): Promise<Intervention> {
+  async createIntervention(data: any): Promise<Intervention> {
     const query = `
-      INSERT INTO Interventions (StudentID, InterventionType, Description, Priority, AssignedTo, Notes)
-      OUTPUT INSERTED.*
-      VALUES (@studentId, @interventionType, @description, @priority, @assignedTo, @notes)
+      INSERT INTO SupportRequests (StudentID, CategoryID, Title, Description, Priority, Status, CreatedAt)
+      VALUES (@studentId, 1, @title, @notes, @priority, 'Open', CURRENT_TIMESTAMP)
+      RETURNING *
     `;
-    const result = await databaseService.executeQuery<Intervention>(query, {
+    const params = {
       studentId: data.studentId,
-      interventionType: data.interventionType,
-      description: data.description || null,
-      priority: data.priority || 'Medium',
-      assignedTo: data.assignedTo || null,
-      notes: data.notes || null
-    });
-    return result[0] as Intervention;
-  }
-
-  async getStudentsForExport(): Promise<any[]> {
-    const query = `
-      SELECT 
-        s.StudentID,
-        s.StudentName,
-        s.StudentNumber,
-        u.UniversityName,
-        p.ProgramName,
-        s.YearOfStudy,
-        s.GPA,
-        s.RiskLevel,
-        s.ContactEmail,
-        s.ContactPhone,
-        s.EmergencyContact,
-        s.EmergencyPhone,
-        s.DateEnrolled,
-        s.LastLoginDate,
-        (SELECT COUNT(*) FROM Interventions i WHERE i.StudentID = s.StudentID AND i.Status = 'Active') as ActiveInterventions
-      FROM Students s
-      JOIN Universities u ON s.UniversityID = u.UniversityID
-      JOIN Programs p ON s.ProgramID = p.ProgramID
-      WHERE s.IsActive = 1
-      ORDER BY s.StudentName
-    `;
-    return databaseService.executeQuery(query);
+      title: data.type || 'Intervention',
+      notes: data.notes || '',
+      priority: data.riskLevel || 'Medium'
+    };
+    
+    const results = await databaseService.executeQuery(query, params);
+    const i = results[0];
+    
+    return {
+        id: i.RequestID,
+        studentId: i.StudentID,
+        type: i.Title,
+        notes: i.Notes,
+        status: i.Status,
+        riskLevel: i.Priority,
+        dateLogged: i.CreatedAt
+    };
   }
 }
 

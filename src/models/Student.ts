@@ -1,23 +1,30 @@
 export interface Student {
-  StudentID: number;
-  StudentName: string;
-  StudentNumber: string;
-  UniversityID: number;
-  UniversityName: string;
-  ProgramID: number;
-  ProgramName: string;
-  YearOfStudy: number;
-  GPA: number;
-  RiskLevel: 'Safe' | 'At Risk' | 'Critical';
-  ContactEmail: string;
-  ContactPhone?: string;
-  EmergencyContact?: string;
-  EmergencyPhone?: string;
-  DateEnrolled: string;
-  LastLoginDate?: string;
-  IsActive: boolean;
-  CreatedAt: string;
-  UpdatedAt: string;
+  id: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone?: string;
+  studentId: string; // Student Number e.g. ST2026001
+  idNumber?: string;
+  university?: string;
+  program?: string;
+  major?: string;
+  minor?: string;
+  year?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  address?: string;
+  gpa: number;
+  risk: 'Safe' | 'At Risk' | 'Critical';
+  status: 'Active' | 'Inactive';
+  lastActivity?: string;
+  enrollmentDate?: string;
+  avatarUrl?: string;
+  assignedCoordinatorId?: string;
+  nativeLanguage?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StudentStatistics {

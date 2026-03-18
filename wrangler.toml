@@ -1,10 +1,20 @@
-name = "student-wellness-api"
+name = "student-support-api"
 main = "src/index.ts"
-compatibility_date = "2025-01-01"
-# Use nodejs_compat_v2 for better node compatibility
+compatibility_date = "2026-03-18"
 compatibility_flags = [ "nodejs_compat" ]
+minify = true
+
+[vars]
+SETUP_PASSWORD = "mfundo-setup-2024"
+DB_SERVER = "your-sql-server-address.database.windows.net"
+DB_NAME = "StudentWellnessDB"
+DB_PORT = "1433"
+
+[[kv_namespaces]]
+binding = "CONFIG_KV"
+id = "d23883fda3a94d19b9ed355046ee7da5"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "student-wellness-db-fresh"
-database_id = "e467dc8b-74a1-448e-aedf-5727e9b8a301"
+database_name = "student-wellness-db"
+database_id = "5f6240a7-dcdc-469e-8583-9f4acac5c6ff"

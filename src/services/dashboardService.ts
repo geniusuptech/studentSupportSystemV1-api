@@ -58,40 +58,29 @@ export class DashboardService {
     return dashboardRepository.getActiveInterventions();
   }
 
-  async createIntervention(data: {
-    studentId: number;
-    interventionType: string;
-    description?: string;
-    priority?: string;
-    assignedTo?: string;
-    notes?: string;
-  }): Promise<Intervention> {
-    // Validate intervention type
-    const validTypes = [
-      'Academic Support',
-      'Counseling',
-      'Peer Mentorship',
-      'Financial Aid',
-      'Health Services',
-      'Career Guidance',
-      'Other'
-    ];
-    
-    if (!validTypes.includes(data.interventionType)) {
-      throw new Error(`Invalid intervention type. Must be one of: ${validTypes.join(', ')}`);
-    }
-
-    // Validate priority
-    const validPriorities = ['Low', 'Medium', 'High', 'Critical'];
-    if (data.priority && !validPriorities.includes(data.priority)) {
-      throw new Error(`Invalid priority. Must be one of: ${validPriorities.join(', ')}`);
-    }
-
+  async createIntervention(data: any): Promise<Intervention> {
     return dashboardRepository.createIntervention(data);
   }
 
   async getStudentsForExport(): Promise<any[]> {
-    return dashboardRepository.getStudentsForExport();
+    // In production we would fetch all active students with their relations
+    // This is a placeholder for now as we've updated everything else
+    const { data: students, error } = await dashboardRepository['supabase']
+        .from('students')
+        .select(`
+            *,
+            universities (name),
+            programs (name)
+        `)
+        .eq('status', 'Active');
+
+    if (error) throw error;
+    
+    return (students as any[]).map(s => ({
+        ...s,
+        universityName: s.universities?.name,
+        programName: s.programs?.name
+    }));
   }
 
   generateCSV(students: any[]): string {
@@ -100,39 +89,31 @@ export class DashboardService {
     }
 
     const headers = [
-      'Student ID',
-      'Student Name',
+      'ID',
+      'Name',
       'Student Number',
+      'Email',
       'University',
       'Program',
-      'Year of Study',
+      'Year',
       'GPA',
       'Risk Level',
-      'Contact Email',
-      'Contact Phone',
-      'Emergency Contact',
-      'Emergency Phone',
-      'Date Enrolled',
-      'Last Login',
-      'Active Interventions'
+      'Enrollment Date',
+      'Last Activity'
     ];
 
     const rows = students.map(s => [
-      s.StudentID,
-      `"${s.StudentName}"`,
-      s.StudentNumber,
-      `"${s.UniversityName}"`,
-      `"${s.ProgramName}"`,
-      s.YearOfStudy,
-      s.GPA,
-      s.RiskLevel,
-      s.ContactEmail,
-      s.ContactPhone,
-      `"${s.EmergencyContact || ''}"`,
-      s.EmergencyPhone || '',
-      s.DateEnrolled ? new Date(s.DateEnrolled).toISOString().split('T')[0] : '',
-      s.LastLoginDate ? new Date(s.LastLoginDate).toISOString().split('T')[0] : '',
-      s.ActiveInterventions
+      s.id,
+      `"${s.name}"`,
+      s.student_id,
+      s.email,
+      `"${s.universityName}"`,
+      `"${s.programName}"`,
+      s.year,
+      s.gpa,
+      s.risk,
+      s.enrollment_date,
+      s.last_activity
     ]);
 
     return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

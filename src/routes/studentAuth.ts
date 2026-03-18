@@ -1,11 +1,10 @@
 import { Hono } from 'hono';
 import { studentAuthController } from '../controllers/studentAuthController';
-import { expressToHono } from '../utils/hono-express-adapter';
 
 const router = new Hono();
 
-router.post('/login', expressToHono(studentAuthController.login));
-router.get('/verify', expressToHono(studentAuthController.verifyToken));
-router.get('/me', expressToHono(studentAuthController.getCurrentStudent));
+router.post('/login', (c) => studentAuthController.login(c));
+router.get('/verify', (c) => studentAuthController.verifyToken(c));
+router.get('/me', (c) => studentAuthController.getCurrentStudent(c));
 
 export default router;
