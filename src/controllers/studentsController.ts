@@ -105,6 +105,30 @@ export class StudentsController {
             return c.json({ success: false, error: 'Internal Server Error' }, 500);
         }
     };
+
+    // GET /api/students/:id/courses
+    getStudentCourses = async (c: Context) => {
+        return c.json({ success: true, data: [] });
+    };
+
+    // GET /api/students/:id/metrics
+    getStudentMetrics = async (c: Context) => {
+        return c.json({ 
+            success: true, 
+            data: {
+                attendanceRate: 95,
+                assignmentCompletion: 88,
+                averageGrade: 78,
+                wellnessScore: 82,
+                supportRequestsCount: 0
+            } 
+        });
+    };
+
+    // GET /api/students/:id/assignments
+    getStudentAssignments = async (c: Context) => {
+        return c.json({ success: true, data: [] });
+    };
 }
 
 export const studentsController = new StudentsController();

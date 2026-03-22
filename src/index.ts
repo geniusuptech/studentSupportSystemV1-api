@@ -16,6 +16,7 @@ import riskLevelsRoutes from './routes/riskLevels';
 import interventionsRoutes from './routes/interventions';
 import reportsRoutes from './routes/reports';
 import messagesRoutes from './routes/messages';
+import logsRoutes from './routes/logs';
 
 // Import services and config
 import { swaggerSpec } from './config/swagger';
@@ -127,7 +128,7 @@ app.get('/api-docs.json', (c) => {
   return c.json(swaggerSpec);
 });
 
-// Register API Routes
+// Register API Routes - Standard /api prefix
 app.route('/api/students/auth', studentAuthRoutes);
 app.route('/api/students', studentsRoutes);
 app.route('/api/auth', authRoutes);
@@ -140,6 +141,22 @@ app.route('/api/risk-levels', riskLevelsRoutes);
 app.route('/api/interventions', interventionsRoutes);
 app.route('/api/reports', reportsRoutes);
 app.route('/api/messages', messagesRoutes);
+app.route('/api/logs', logsRoutes);
+
+// Register API Routes - Root level aliases for Frontend Compatibility
+app.route('/students/auth', studentAuthRoutes); // Direct match for students/auth/login
+app.route('/students', studentsRoutes);
+app.route('/auth', authRoutes);
+app.route('/support-requests', supportRequestsRoutes);
+app.route('/partners', partnersRoutes);
+app.route('/dashboard', dashboardRoutes);
+app.route('/universities', universitiesRoutes);
+app.route('/programs', programsRoutes);
+app.route('/risk-levels', riskLevelsRoutes);
+app.route('/interventions', interventionsRoutes);
+app.route('/reports', reportsRoutes);
+app.route('/messages', messagesRoutes);
+app.route('/logs', logsRoutes);
 
 // Global Error Handler
 app.onError((err, c) => {

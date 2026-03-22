@@ -64,4 +64,13 @@ router.put('/:id/risk', (c) => studentsController.updateStudentRiskLevel(c));
 // GET /api/students/:id
 router.get('/:id', (c) => studentsController.getStudentById(c));
 
+// GET /api/students/:id/courses
+router.get('/:id/courses', (c) => studentsController.getStudentCourses(c));
+
+// GET /api/students/:id/metrics
+router.get('/:id/metrics', (c) => studentsController.getStudentMetrics(c));
+
+// GET /api/students/:id/assignments
+router.get('/:id/assignments', (c) => studentsController.getStudentAssignments(c));
+
 export default router;

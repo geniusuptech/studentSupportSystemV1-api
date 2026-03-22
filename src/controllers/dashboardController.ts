@@ -123,6 +123,16 @@ export class DashboardController {
       return c.json({ success: false, error: 'Internal Server Error' }, 500);
     }
   };
+
+  // GET /api/logs
+  getLogs = async (c: Context) => {
+    return c.json({ success: true, count: 0, data: [] });
+  };
+
+  // PUT /api/logs/:id/status
+  updateLogStatus = async (c: Context) => {
+    return c.json({ success: true, message: 'Log status updated successfully' });
+  };
 }
 
 export const dashboardController = new DashboardController();

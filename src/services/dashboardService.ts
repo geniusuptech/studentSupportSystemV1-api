@@ -63,24 +63,8 @@ export class DashboardService {
   }
 
   async getStudentsForExport(): Promise<any[]> {
-    // In production we would fetch all active students with their relations
-    // This is a placeholder for now as we've updated everything else
-    const { data: students, error } = await dashboardRepository['supabase']
-        .from('students')
-        .select(`
-            *,
-            universities (name),
-            programs (name)
-        `)
-        .eq('status', 'Active');
-
-    if (error) throw error;
-    
-    return (students as any[]).map(s => ({
-        ...s,
-        universityName: s.universities?.name,
-        programName: s.programs?.name
-    }));
+    // Fetch all active students for export (D1 implementation)
+    return dashboardRepository.getAllStudentsForExport();
   }
 
   generateCSV(students: any[]): string {

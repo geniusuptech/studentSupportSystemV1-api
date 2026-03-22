@@ -168,6 +168,27 @@ export class DashboardRepository {
         dateLogged: i.CreatedAt
     };
   }
+  async getAllStudentsForExport(): Promise<any[]> {
+    const query = `
+      SELECT 
+        StudentID as id,
+        StudentName as name,
+        StudentNumber as student_id,
+        ContactEmail as email,
+        ContactPhone as phone,
+        UniversityName as universityName,
+        ProgramName as programName,
+        YearOfStudy as year,
+        GPA as gpa,
+        RiskLevel as risk,
+        'Active' as status,
+        CreatedAt as enrollment_date,
+        LastLoginDate as last_activity
+      FROM vw_StudentDetails
+      WHERE IsActive = 1
+    `;
+    return databaseService.executeQuery(query);
+  }
 }
 
 export const dashboardRepository = new DashboardRepository();

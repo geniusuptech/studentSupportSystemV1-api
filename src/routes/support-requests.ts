@@ -18,12 +18,48 @@ router.get('/', async (c) => {
 // POST /api/support-requests
 router.post('/', async (c) => {
     try {
-        const body = await c.req.json();
+        let body: any;
+        const contentType = c.req.header('content-type') || '';
+        
+        if (contentType.includes('multipart/form-data') || contentType.includes('form-data')) {
+            const formData = await c.req.parseBody();
+            if (formData.data) {
+                try {
+                    body = JSON.parse(formData.data as string);
+                } catch (e) {
+                    body = formData;
+                }
+            } else {
+                body = formData;
+            }
+        } else {
+            body = await c.req.json();
+        }
+        
         const newRequest = await supportRequestsRepository.createRequest(body);
         return c.json({ success: true, message: 'Support request created successfully', data: newRequest }, 201);
     } catch (error: any) {
         console.error('Error creating support request:', error);
-        return c.json({ success: false, message: 'Failed to create support request' }, 500);
+        return c.json({ success: false, message: 'Failed to create support request', error: error.message }, 500);
+    }
+});
+
+// PATCH /api/support-requests/:id
+router.patch('/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const body = await c.req.json();
+        
+        // Detailed update mapping if needed, but for now support status/priority
+        if (body.status) {
+            await supportRequestsRepository.updateStatus(id, body.status);
+        }
+        // In a real app we'd have a generic update method in repository
+        
+        return c.json({ success: true, message: 'Request updated successfully' });
+    } catch (error: any) {
+        console.error('Error updating support request:', error);
+        return c.json({ success: false, message: 'Failed to update support request' }, 500);
     }
 });
 
