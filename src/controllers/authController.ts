@@ -102,6 +102,9 @@ export class AuthController {
     getUserById = async (c: Context) => {
         try {
             const id = c.req.param('id');
+            if (!id) {
+                return c.json({ success: false, message: 'User ID is required' }, 400);
+            }
             const user = await authService.getUserById(id);
             
             if (!user) {

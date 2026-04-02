@@ -12,7 +12,10 @@ export const authenticateToken = async (c: Context, next: Next) => {
     return c.json({ success: false, error: 'Unauthorized', message: 'Access token is required' }, 401);
   }
 
-  const jwtSecret = c.env.JWT_SECRET || 'your-secret-key-change-in-production';
+  const jwtSecret = c.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
 
   try {
     const decoded = await verify(token, jwtSecret, 'HS256') as unknown as AuthTokenPayload;
@@ -61,7 +64,10 @@ export const optionalAuth = async (c: Context, next: Next) => {
         return;
     }
 
-    const jwtSecret = c.env.JWT_SECRET || 'your-secret-key-change-in-production';
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is required');
+    }
 
     try {
         const decoded = await verify(token, jwtSecret, 'HS256') as unknown as AuthTokenPayload;

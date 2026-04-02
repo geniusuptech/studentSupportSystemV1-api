@@ -156,32 +156,10 @@ CREATE TABLE IF NOT EXISTS Users (
     UNIQUE(Email, UserType)
 );
 
--- Minimal sample for testing (remove in full prod)
-INSERT OR IGNORE INTO Universities (UniversityName, UniversityCode, Location) VALUES
-('University of Cape Town', 'UCT', 'Cape Town'),
-('University of Johannesburg', 'UJ', 'Johannesburg');
-
-INSERT OR IGNORE INTO Programs (ProgramName, ProgramCode, Department) VALUES
-('Computer Science', 'CS', 'Science'),
-('Business Administration', 'BA', 'Business');
-
-INSERT OR IGNORE INTO Students (StudentName, StudentNumber, UniversityID, ProgramID, ContactEmail, DateEnrolled) VALUES
-('John Doe', 'UCT2024001', 1, 1, 'john.doe@uct.ac.za', CURRENT_TIMESTAMP),
-('Jane Smith', 'UJ2024002', 2, 2, 'jane.smith@uj.ac.za', CURRENT_TIMESTAMP);
-
-INSERT OR IGNORE INTO Users (Email, PasswordHash, UserType, StudentID, FirstName, LastName) VALUES
-('john.doe@uct.ac.za', '$2a$12$examplehashforjohn', 'Student', 1, 'John', 'Doe'),
-('admin@wellness.com', '$2a$12$examplehashforadmin', 'Admin', NULL, 'Admin', 'User'),
-('coord@uj.ac.za', '$2a$12$examplehashforcoord', 'Coordinator', NULL, 'Jane', 'Coordinator');
-
 -- Views for queries
 CREATE VIEW IF NOT EXISTS vw_StudentDetails AS
 SELECT s.*, u.UniversityName, p.ProgramName
 FROM Students s
 JOIN Universities u ON s.UniversityID = u.UniversityID
 JOIN Programs p ON s.ProgramID = p.ProgramID;
-
--- Sample data (remove in production)
-INSERT OR IGNORE INTO Coordinators (CoordinatorName, Email, UniversityID) VALUES
-('University Coordinator', 'coord@uj.ac.za', 2);
 

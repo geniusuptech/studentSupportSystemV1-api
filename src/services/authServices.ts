@@ -4,7 +4,7 @@ import { authRepository } from '../repository/authRepository';
 import { User, LoginRequest, LoginResponse, RegisterRequest, AuthTokenPayload } from '../models/User';
 
 export class AuthService {
-    private secret: string = 'your-secret-key-change-in-production';
+    private secret: string = '';
 
     setSecret(secret: string) {
         this.secret = secret;

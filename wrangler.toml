@@ -4,16 +4,6 @@ compatibility_date = "2026-03-18"
 compatibility_flags = [ "nodejs_compat" ]
 minify = true
 
-[vars]
-SETUP_PASSWORD = "mfundo-setup-2024"
-DB_SERVER = "your-sql-server-address.database.windows.net"
-DB_NAME = "StudentWellnessDB"
-DB_PORT = "1433"
-
-[[kv_namespaces]]
-binding = "CONFIG_KV"
-id = "d23883fda3a94d19b9ed355046ee7da5"
-
 [[d1_databases]]
 binding = "DB"
 database_name = "student-wellness-db"

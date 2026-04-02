@@ -36,14 +36,19 @@ app.use('*', cors({
   credentials: true,
 }));
 
-// Initialize Database config from Worker Env
+// Initialize Database and Auth config from Worker Env
 app.use('*', async (c, next) => {
   databaseService.setDB(c.env.DB);
-  authService.setSecret(c.env.JWT_SECRET || 'your-secret-key-change-in-production');
+  
+  // Only set JWT secret if it exists (for non-health endpoints)
+  if (c.env.JWT_SECRET) {
+    authService.setSecret(c.env.JWT_SECRET);
+  }
+  
   await next();
 });
 
-// Health check
+// Health check - should work without authentication
 app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
@@ -51,7 +56,8 @@ app.get('/api/health', (c) => {
     environment: 'production',
     platform: 'Cloudflare Workers (Hono)',
     version: '1.2.0',
-    dbConfigured: databaseService.isConfigured()
+    dbConfigured: databaseService.isConfigured(),
+    jwtConfigured: !!c.env.JWT_SECRET
   });
 });
 

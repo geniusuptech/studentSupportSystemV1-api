@@ -97,6 +97,7 @@ export class AuthRepository {
             lastName: row.LastName,
             isActive: row.IsActive === 1,
             hasPassword: row.HasPassword === 1,
+            isEmailVerified: row.IsEmailVerified === 1 || false,
             createdAt: row.CreatedAt,
             studentId: row.StudentID,
             coordinatorId: row.CoordinatorID,
