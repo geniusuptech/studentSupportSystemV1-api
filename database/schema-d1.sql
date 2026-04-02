@@ -1,6 +1,7 @@
 -- Create Tables for SQLite (Cloudflare D1)
 
-CREATE TABLE Universities (
+-- Existing tables...
+CREATE TABLE IF NOT EXISTS Universities (
     UniversityID INTEGER PRIMARY KEY AUTOINCREMENT,
     UniversityName TEXT NOT NULL UNIQUE,
     UniversityCode TEXT NOT NULL UNIQUE,
@@ -12,7 +13,7 @@ CREATE TABLE Universities (
     UpdatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
-CREATE TABLE Programs (
+CREATE TABLE IF NOT EXISTS Programs (
     ProgramID INTEGER PRIMARY KEY AUTOINCREMENT,
     ProgramName TEXT NOT NULL,
     ProgramCode TEXT NOT NULL,
@@ -23,7 +24,7 @@ CREATE TABLE Programs (
     UpdatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
-CREATE TABLE Partners (
+CREATE TABLE IF NOT EXISTS Partners (
     PartnerID INTEGER PRIMARY KEY AUTOINCREMENT,
     PartnerName TEXT NOT NULL,
     PartnerType TEXT NOT NULL,
@@ -42,7 +43,7 @@ CREATE TABLE Partners (
     UpdatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
-CREATE TABLE SupportRequestCategories (
+CREATE TABLE IF NOT EXISTS SupportRequestCategories (
     CategoryID INTEGER PRIMARY KEY AUTOINCREMENT,
     CategoryName TEXT NOT NULL UNIQUE,
     CategoryDescription TEXT,
@@ -51,7 +52,7 @@ CREATE TABLE SupportRequestCategories (
     CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
-CREATE TABLE Students (
+CREATE TABLE IF NOT EXISTS Students (
     StudentID INTEGER PRIMARY KEY AUTOINCREMENT,
     StudentName TEXT NOT NULL,
     StudentNumber TEXT NOT NULL UNIQUE,
@@ -73,7 +74,7 @@ CREATE TABLE Students (
     FOREIGN KEY (ProgramID) REFERENCES Programs(ProgramID)
 );
 
-CREATE TABLE SupportRequests (
+CREATE TABLE IF NOT EXISTS SupportRequests (
     RequestID INTEGER PRIMARY KEY AUTOINCREMENT,
     StudentID INTEGER NOT NULL,
     CategoryID INTEGER NOT NULL,
@@ -91,7 +92,7 @@ CREATE TABLE SupportRequests (
     FOREIGN KEY (AssignedPartnerID) REFERENCES Partners(PartnerID)
 );
 
-CREATE TABLE SupportLogs (
+CREATE TABLE IF NOT EXISTS SupportLogs (
     LogID INTEGER PRIMARY KEY AUTOINCREMENT,
     RequestID INTEGER NOT NULL,
     PartnerID INTEGER NOT NULL,
@@ -106,7 +107,7 @@ CREATE TABLE SupportLogs (
     FOREIGN KEY (PartnerID) REFERENCES Partners(PartnerID)
 );
 
-CREATE TABLE StudentProfiles (
+CREATE TABLE IF NOT EXISTS StudentProfiles (
     ProfileID INTEGER PRIMARY KEY AUTOINCREMENT,
     StudentID INTEGER NOT NULL,
     ProfilePictureURL TEXT,
@@ -121,34 +122,66 @@ CREATE TABLE StudentProfiles (
     FOREIGN KEY (StudentID) REFERENCES Students(StudentID)
 );
 
--- Initial Data
-INSERT INTO Universities (UniversityName, UniversityCode, Location, Website, ContactEmail) VALUES
-('University of Cape Town', 'UCT', 'Cape Town, Western Cape', 'https://www.uct.ac.za', 'info@uct.ac.za'),
-('University of the Witwatersrand', 'WITS', 'Johannesburg, Gauteng', 'https://www.wits.ac.za', 'info@wits.ac.za'),
-('University of Johannesburg', 'UJ', 'Johannesburg, Gauteng', 'https://www.uj.ac.za', 'info@uj.ac.za'),
-('University of KwaZulu-Natal', 'UKZN', 'Durban, KwaZulu-Natal', 'https://www.ukzn.ac.za', 'info@ukzn.ac.za');
+-- Coordinators table (needed before Users table for FK)
+CREATE TABLE IF NOT EXISTS Coordinators (
+    CoordinatorID INTEGER PRIMARY KEY AUTOINCREMENT,
+    CoordinatorName TEXT NOT NULL,
+    Email TEXT NOT NULL UNIQUE,
+    Department TEXT,
+    UniversityID INTEGER,
+    IsActive INTEGER DEFAULT 1,
+    CreatedAt TEXT DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (UniversityID) REFERENCES Universities(UniversityID)
+);
 
-INSERT INTO Programs (ProgramName, ProgramCode, Department, DurationYears) VALUES
-('Computer Science', 'CS', 'Computer Science', 3),
-('Business Administration', 'BA', 'Business School', 3),
-('Engineering', 'ENG', 'Engineering', 4),
-('Medicine', 'MED', 'Health Sciences', 6),
-('Psychology', 'PSY', 'Psychology', 3),
-('Law', 'LAW', 'Law School', 4);
+-- NEW: Users table for authentication
+CREATE TABLE IF NOT EXISTS Users (
+    UserID INTEGER PRIMARY KEY AUTOINCREMENT,
+    Email TEXT NOT NULL UNIQUE,
+    PasswordHash TEXT NOT NULL,
+    UserType TEXT NOT NULL CHECK (UserType IN ('Student', 'Coordinator', 'Partner', 'Admin')),
+    FirstName TEXT,
+    LastName TEXT,
+    StudentID INTEGER NULL,
+    CoordinatorID INTEGER NULL,
+    PartnerID INTEGER NULL,
+    IsActive INTEGER NOT NULL DEFAULT 1,
+    IsEmailVerified INTEGER DEFAULT 0,
+    LastLoginDate TEXT,
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    UpdatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
+    FOREIGN KEY (CoordinatorID) REFERENCES Coordinators(CoordinatorID), -- Add Coordinators table if needed
+    FOREIGN KEY (PartnerID) REFERENCES Partners(PartnerID),
+    UNIQUE(Email, UserType)
+);
 
-INSERT INTO SupportRequestCategories (CategoryName, CategoryDescription, DefaultPriority) VALUES
-('Academic Support', 'Help with coursework, tutoring, study skills', 'Medium'),
-('Mental Health', 'Counseling, stress management, emotional support', 'High'),
-('Financial Aid', 'Assistance with fees, bursaries, financial planning', 'Medium'),
-('Career Guidance', 'Career counseling, job search, internship support', 'Low');
+-- Minimal sample for testing (remove in full prod)
+INSERT OR IGNORE INTO Universities (UniversityName, UniversityCode, Location) VALUES
+('University of Cape Town', 'UCT', 'Cape Town'),
+('University of Johannesburg', 'UJ', 'Johannesburg');
 
-INSERT INTO Partners (PartnerName, PartnerType, Specialization, ContactEmail, ContactPhone, MaxCapacity, Rating, YearsOfExperience, HourlyRate, Location, Bio) VALUES
-('Dr. Sarah Johnson', 'Counselor', 'Mental Health, Stress Management', 'sarah.johnson@wellness.com', '+27-11-123-4567', 15, 4.8, 8, 750.00, 'Johannesburg', 'Experienced clinical psychologist specializing in student mental health and academic stress management.'),
-('Prof. Michael Chen', 'Tutor', 'Computer Science, Mathematics', 'michael.chen@tutors.com', '+27-21-234-5678', 20, 4.9, 12, 500.00, 'Cape Town', 'Professor of Computer Science with extensive tutoring experience in programming and mathematics.'),
-('Ms. Nomsa Mbeki', 'Mentor', 'Career Guidance, Professional Development', 'nomsa.mbeki@careers.com', '+27-31-345-6789', 12, 4.7, 5, 400.00, 'Durban', 'Career counselor with experience in helping students transition from university to workplace.'),
-('Dr. James Wilson', 'Tutor', 'Engineering, Physics', 'james.wilson@engineering.com', '+27-11-456-7890', 18, 4.6, 10, 600.00, 'Johannesburg', 'Engineering professor offering tutoring in mechanical engineering and physics.'),
-('Ms. Priya Patel', 'Counselor', 'Financial Planning, Student Aid', 'priya.patel@finance.com', '+27-21-567-8901', 10, 4.5, 6, 350.00, 'Cape Town', 'Financial advisor specializing in student financial planning and aid applications.'),
-('Dr. Thabo Mthembu', 'Tutor', 'Medicine, Biology', 'thabo.mthembu@medical.com', '+27-31-678-9012', 15, 4.8, 9, 800.00, 'Durban', 'Medical doctor and researcher providing tutoring in medical sciences and biology.'),
-('Ms. Lisa Rodriguez', 'Mentor', 'Study Skills, Academic Planning', 'lisa.rodriguez@academic.com', '+27-11-789-0123', 25, 4.4, 4, 300.00, 'Johannesburg', 'Academic success coach helping students develop effective study strategies and time management.'),
-('Dr. Ahmed Hassan', 'Tutor', 'Business, Economics', 'ahmed.hassan@business.com', '+27-21-890-1234', 16, 4.7, 7, 450.00, 'Cape Town', 'Business professor with expertise in economics, finance, and business strategy.'),
-('Ms. Jennifer Smith', 'Counselor', 'Peer Support, Group Therapy', 'jennifer.smith@support.com', '+27-31-901-2345', 20, 4.6, 5, 400.00, 'Durban', 'Licensed therapist specializing in group therapy and peer support programs for university students.');
+INSERT OR IGNORE INTO Programs (ProgramName, ProgramCode, Department) VALUES
+('Computer Science', 'CS', 'Science'),
+('Business Administration', 'BA', 'Business');
+
+INSERT OR IGNORE INTO Students (StudentName, StudentNumber, UniversityID, ProgramID, ContactEmail, DateEnrolled) VALUES
+('John Doe', 'UCT2024001', 1, 1, 'john.doe@uct.ac.za', CURRENT_TIMESTAMP),
+('Jane Smith', 'UJ2024002', 2, 2, 'jane.smith@uj.ac.za', CURRENT_TIMESTAMP);
+
+INSERT OR IGNORE INTO Users (Email, PasswordHash, UserType, StudentID, FirstName, LastName) VALUES
+('john.doe@uct.ac.za', '$2a$12$examplehashforjohn', 'Student', 1, 'John', 'Doe'),
+('admin@wellness.com', '$2a$12$examplehashforadmin', 'Admin', NULL, 'Admin', 'User'),
+('coord@uj.ac.za', '$2a$12$examplehashforcoord', 'Coordinator', NULL, 'Jane', 'Coordinator');
+
+-- Views for queries
+CREATE VIEW IF NOT EXISTS vw_StudentDetails AS
+SELECT s.*, u.UniversityName, p.ProgramName
+FROM Students s
+JOIN Universities u ON s.UniversityID = u.UniversityID
+JOIN Programs p ON s.ProgramID = p.ProgramID;
+
+-- Sample data (remove in production)
+INSERT OR IGNORE INTO Coordinators (CoordinatorName, Email, UniversityID) VALUES
+('University Coordinator', 'coord@uj.ac.za', 2);
+

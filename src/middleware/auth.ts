@@ -1,30 +1,32 @@
 import { Context, Next } from 'hono';
 import { jwt, sign, verify } from 'hono/jwt';
+import { getCookie } from 'hono/cookie';
 import { AuthTokenPayload } from '../models/User';
 
 export const authenticateToken = async (c: Context, next: Next) => {
-    const authHeader = c.req.header('authorization');
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  let token = c.req.header('authorization')?.split(' ')[1]; // Bearer TOKEN
+  if (!token) {
+    token = getCookie(c, 'jwt');
+  }
+  if (!token) {
+    return c.json({ success: false, error: 'Unauthorized', message: 'Access token is required' }, 401);
+  }
 
-    if (!token) {
-        return c.json({ success: false, error: 'Unauthorized', message: 'Access token is required' }, 401);
+  const jwtSecret = c.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+  try {
+    const decoded = await verify(token, jwtSecret, 'HS256') as unknown as AuthTokenPayload;
+    c.set('user', decoded);
+    await next();
+  } catch (error: any) {
+    console.error('Token verification failed:', error);
+    
+    if (error.name === 'JwtTokenExpired') {
+      return c.json({ success: false, error: 'Token Expired', message: 'Access token has expired. Please login again.' }, 401);
     }
-
-    const jwtSecret = c.env.JWT_SECRET || 'your-secret-key-change-in-production';
-
-    try {
-        const decoded = await verify(token, jwtSecret, 'HS256') as unknown as AuthTokenPayload;
-        c.set('user', decoded);
-        await next();
-    } catch (error: any) {
-        console.error('Token verification failed:', error);
-        
-        if (error.name === 'JwtTokenExpired') {
-            return c.json({ success: false, error: 'Token Expired', message: 'Access token has expired. Please login again.' }, 401);
-        }
-        
-        return c.json({ success: false, error: 'Invalid Token', message: 'Invalid or expired access token provided' }, 401);
-    }
+    
+    return c.json({ success: false, error: 'Invalid Token', message: 'Invalid or expired access token provided' }, 401);
+  }
 };
 
 export const requireRole = (...allowedRoles: string[]) => {

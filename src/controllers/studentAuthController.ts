@@ -13,6 +13,9 @@ export class StudentAuthController {
       if (!result.success) {
         return c.json({ success: false, error: 'Authentication Failed', message: result.message }, 401);
       }
+      // Set JWT cookie
+      const cookieValue = `jwt=${result.token!}; HttpOnly; ${process.env.NODE_ENV === 'production' ? 'Secure; ' : ''}SameSite=Strict; Max-Age=${60 * 60 * 24}`;
+      c.header('Set-Cookie', cookieValue);
       return c.json({ success: true, message: result.message, data: { token: result.token, student: result.student } });
     } catch (error: any) {
       console.error('Login error:', error);
@@ -28,7 +31,7 @@ export class StudentAuthController {
         return c.json({ success: false, error: 'Unauthorized', message: 'No token provided' }, 401);
       }
       const token = authHeader.split(' ')[1] || '';
-      const decoded = studentAuthService.verifyToken(token);
+      const decoded = await studentAuthService.verifyToken(token);
       if (!decoded) {
         return c.json({ success: false, error: 'Unauthorized', message: 'Invalid or expired token' }, 401);
       }
@@ -47,7 +50,7 @@ export class StudentAuthController {
         return c.json({ success: false, error: 'Unauthorized', message: 'No token provided' }, 401);
       }
       const token = authHeader.split(' ')[1] || '';
-      const decoded = studentAuthService.verifyToken(token);
+      const decoded = await studentAuthService.verifyToken(token);
       if (!decoded) {
         return c.json({ success: false, error: 'Unauthorized', message: 'Invalid or expired token' }, 401);
       }

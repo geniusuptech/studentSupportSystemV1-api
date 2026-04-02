@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:remote": "wrangler dev --remote",
     "deploy": "wrangler deploy --minify",
     "build": "tsc",
     "lint": "eslint src/**/*.ts"
@@ -16,6 +17,6 @@
     "bcryptjs": "^3.0.3",
     "hono": "^4.12.8",
     "typescript": "^5.4.2",
-    "wrangler": "^4.75.0"
+    "wrangler": "^4.78.0"
   }
 }

@@ -4,7 +4,6 @@ import { logger } from 'hono/logger';
 
 // Import route definitions
 import studentsRoutes from './routes/students';
-import studentAuthRoutes from './routes/studentAuth';
 import supportRequestsRoutes from './routes/support-requests';
 import partnersRoutes from './routes/partners';
 import { authService } from './services/authServices';
@@ -56,24 +55,7 @@ app.get('/api/health', (c) => {
   });
 });
 
-// Database connection test (D1 verify)
-app.get('/api/test-db', async (c) => {
-  try {
-    if (!c.env.DB) throw new Error('DB binding not found');
-    const result = await c.env.DB.prepare('SELECT 1').all();
-    return c.json({
-      success: true,
-      message: 'Cloudflare D1 Database is connected!',
-      result: result.results
-    });
-  } catch (err: any) {
-    return c.json({
-      success: false,
-      message: 'Database connection failed',
-      error: err.message
-    }, 500);
-  }
-});
+
 
 // Home endpoint
 app.get('/', (c) => {
@@ -82,7 +64,7 @@ app.get('/', (c) => {
     version: '1.2.0',
     documentation: '/api-docs',
     health: '/api/health',
-    test_db: '/api/test-db',
+
     status: 'Ready'
   });
 });
@@ -129,9 +111,9 @@ app.get('/api-docs.json', (c) => {
 });
 
 // Register API Routes - Standard /api prefix
-app.route('/api/students/auth', studentAuthRoutes);
+// REMOVED: app.route('/api/students/auth', studentAuthRoutes); - Now using unified /api/auth for all user types
 app.route('/api/students', studentsRoutes);
-app.route('/api/auth', authRoutes);
+app.route('/api/auth', authRoutes); // Unified auth endpoint for all user types (students, coordinators, partners)
 app.route('/api/support-requests', supportRequestsRoutes);
 app.route('/api/partners', partnersRoutes);
 app.route('/api/dashboard', dashboardRoutes);
@@ -143,10 +125,8 @@ app.route('/api/reports', reportsRoutes);
 app.route('/api/messages', messagesRoutes);
 app.route('/api/logs', logsRoutes);
 
-// Register API Routes - Root level aliases for Frontend Compatibility
-app.route('/students/auth', studentAuthRoutes); // Direct match for students/auth/login
+// Register API Routes - Root level aliases for Frontend Compatibility  
 app.route('/students', studentsRoutes);
-app.route('/auth', authRoutes);
 app.route('/support-requests', supportRequestsRoutes);
 app.route('/partners', partnersRoutes);
 app.route('/dashboard', dashboardRoutes);

@@ -20,11 +20,32 @@ export const swaggerSpec = {
         responses: { '200': { description: 'API is healthy' } }
       }
     },
-    '/students/auth/login': {
+'/auth/login': {
       post: {
         tags: ['Auth'],
-        summary: 'Student login',
+        summary: 'Unified login for all user types (students, coordinators, partners, admins)',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/LoginRequest'
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Success' }, '401': { description: 'Unauthorized' } }
+      }
+    },
+    '/auth/me': {
+      get: {
+        tags: ['Auth'],
+        summary: 'Get current user details (name, surname, userType)',
+        security: [{ bearerAuth: [] }],
+        responses: { 
+          '200': { description: 'Success', content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } } },
+          '401': { description: 'Unauthorized' }
+        }
       }
     },
     '/students': {
@@ -50,13 +71,7 @@ export const swaggerSpec = {
         responses: { '200': { description: 'Success' } }
       }
     },
-    '/auth/login': {
-      post: {
-        tags: ['Auth'],
-        summary: 'Admin/Coordinator login',
-        responses: { '200': { description: 'Success' } }
-      }
-    },
+
     '/dashboard/summary': {
       get: {
         tags: ['Dashboard'],
@@ -119,5 +134,39 @@ export const swaggerSpec = {
         bearerFormat: 'JWT',
       },
     },
+    schemas: {
+      LoginRequest: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email: {
+            type: 'string',
+            format: 'email',
+            example: 'student@example.com'
+          },
+          password: {
+            type: 'string',
+            minLength: 6,
+            example: 'password123'
+          }
+        }
+      },
+      LoginResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          message: { type: 'string' },
+          token: { type: 'string' },
+          user: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              type: { type: 'string', enum: ['student', 'coordinator', 'admin'] },
+              email: { type: 'string' }
+            }
+          }
+        }
+      }
+    }
   },
 };

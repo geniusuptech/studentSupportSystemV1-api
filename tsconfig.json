@@ -8,7 +8,8 @@
     "moduleResolution": "Bundler",
     "moduleDetection": "force",
     "types": [
-      "@cloudflare/workers-types"
+      "@cloudflare/workers-types",
+      "node"
     ],
     "jsx": "preserve",
     "declaration": true,

@@ -19,6 +19,15 @@ export class AuthService {
                 return { success: false, message: 'Invalid email or password or account deactivated' };
             }
 
+            // Check if user needs to set a password
+            if (user.passwordHash === 'NEEDS_PASSWORD_RESET') {
+                return { 
+                    success: false, 
+                    message: 'Password not set. Please use the update-password endpoint to set your password first.',
+                    needsPasswordReset: true
+                };
+            }
+
             const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
             if (!isPasswordValid) {
                 return { success: false, message: 'Invalid email or password' };
@@ -136,7 +145,7 @@ export class AuthService {
 
     async validateToken(token: string): Promise<AuthTokenPayload | null> {
         try {
-            return await verify(token, this.secret) as unknown as AuthTokenPayload;
+            return await verify(token, this.secret, 'HS256') as unknown as AuthTokenPayload;
         } catch (error) {
             console.error('Token validation error:', error);
             return null;
@@ -156,6 +165,41 @@ export class AuthService {
         } catch (error) {
             console.error('Deactivate account error:', error);
             return { success: false, message: 'An error occurred while deactivating account' };
+        }
+    }
+
+    async updatePassword(email: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+        try {
+            const user = await authRepository.getUserByEmail(email);
+            if (!user) {
+                return { success: false, message: 'User not found' };
+            }
+
+            const newPasswordHash = await bcrypt.hash(newPassword, 12);
+            await authRepository.updatePasswordByEmail(email, newPasswordHash);
+
+            return { success: true, message: 'Password updated successfully' };
+        } catch (error) {
+            console.error('Update password error:', error);
+            return { success: false, message: 'An error occurred while updating password' };
+        }
+    }
+
+    async getAllUsers(): Promise<User[]> {
+        try {
+            return await authRepository.getAllUsers();
+        } catch (error) {
+            console.error('Get all users error:', error);
+            return [];
+        }
+    }
+
+    async getUserById(id: string): Promise<User | null> {
+        try {
+            return await authRepository.getUserById(id);
+        } catch (error) {
+            console.error('Get user by ID error:', error);
+            return null;
         }
     }
 }

@@ -5,6 +5,13 @@ import { AuthTokenPayload } from '../models/User';
 
 const messages = new Hono();
 
+// Root endpoint
+messages.get('/', (c) => c.json({
+  message: 'Messages API',
+  endpoints: ['/conversations', '/thread/:id', '/send', '/unread-count'],
+  note: 'Most endpoints require authentication'
+}));
+
 // Helper to get the correct profile ID and type from the user token
 function getUserProfileInfo(user: AuthTokenPayload) {
     const type = user.userType.toLowerCase();

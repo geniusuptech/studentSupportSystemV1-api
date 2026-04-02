@@ -8,9 +8,10 @@ export interface User {
     profilePictureUrl?: string;
     isActive: boolean;
     isEmailVerified: boolean;
+    hasPassword?: boolean; // Indicates if user has set a valid password
     lastLoginAt?: string;
     createdAt: string;
-    updatedAt: string;
+    updatedAt?: string;
     // Related entity IDs
     studentId?: string;
     coordinatorId?: string;
@@ -25,6 +26,7 @@ export interface LoginRequest {
 export interface LoginResponse {
     success: boolean;
     message: string;
+    needsPasswordReset?: boolean; // Indicates if user needs to set password first
     user?: {
         id: string;
         email: string;
