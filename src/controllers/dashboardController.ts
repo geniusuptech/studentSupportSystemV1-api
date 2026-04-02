@@ -53,6 +53,24 @@ export class DashboardController {
     }
   };
 
+  // GET /api/universities/student/:studentId
+  getUniversitiesByStudentId = async (c: Context) => {
+    try {
+      const studentId = c.req.param('studentId');
+      if (!studentId) {
+        return c.json({ success: false, error: 'Student ID is required' }, 400);
+      }
+      const university = await dashboardService.getUniversityByStudentId(studentId);
+      return c.json({ success: true, data: university });
+    } catch (error: any) {
+      console.error('Error fetching university by student ID:', error);
+      if (error.message === 'Student not found') {
+        return c.json({ success: false, error: 'Student not found' }, 404);
+      }
+      return c.json({ success: false, error: 'Internal Server Error' }, 500);
+    }
+  };
+
   // GET /api/programs
   getPrograms = async (c: Context) => {
     try {
@@ -64,6 +82,24 @@ export class DashboardController {
     }
   };
 
+  // GET /api/programs/student/:studentId
+  getProgramsByStudentId = async (c: Context) => {
+    try {
+      const studentId = c.req.param('studentId');
+      if (!studentId) {
+        return c.json({ success: false, error: 'Student ID is required' }, 400);
+      }
+      const program = await dashboardService.getProgramByStudentId(studentId);
+      return c.json({ success: true, data: program });
+    } catch (error: any) {
+      console.error('Error fetching program by student ID:', error);
+      if (error.message === 'Student not found') {
+        return c.json({ success: false, error: 'Student not found' }, 404);
+      }
+      return c.json({ success: false, error: 'Internal Server Error' }, 500);
+    }
+  };
+
   // GET /api/risk-levels
   getRiskLevels = async (c: Context) => {
     try {
@@ -71,6 +107,24 @@ export class DashboardController {
       return c.json({ success: true, count: riskLevels.length, data: riskLevels });
     } catch (error: any) {
       console.error('Error fetching risk levels:', error);
+      return c.json({ success: false, error: 'Internal Server Error' }, 500);
+    }
+  };
+
+  // GET /api/risk-levels/student/:studentId
+  getRiskLevelByStudentId = async (c: Context) => {
+    try {
+      const studentId = c.req.param('studentId');
+      if (!studentId) {
+        return c.json({ success: false, error: 'Student ID is required' }, 400);
+      }
+      const riskLevel = await dashboardService.getRiskLevelByStudentId(studentId);
+      return c.json({ success: true, data: riskLevel });
+    } catch (error: any) {
+      console.error('Error fetching risk level by student ID:', error);
+      if (error.message === 'Student not found') {
+        return c.json({ success: false, error: 'Student not found' }, 404);
+      }
       return c.json({ success: false, error: 'Internal Server Error' }, 500);
     }
   };
@@ -104,26 +158,6 @@ export class DashboardController {
     }
   };
 
-  // GET /api/reports/students/export
-  exportStudents = async (c: Context) => {
-    try {
-      const students = await dashboardService.getStudentsForExport();
-      const format = (c.req.query('format') || 'json').toLowerCase();
-      
-      if (format === 'csv') {
-        const csv = dashboardService.generateCSV(students);
-        c.header('Content-Type', 'text/csv');
-        c.header('Content-Disposition', `attachment; filename=students_export_${new Date().toISOString().split('T')[0]}.csv`);
-        return c.text(csv);
-      } else {
-        return c.json({ success: true, count: students.length, exportedAt: new Date().toISOString(), data: students });
-      }
-    } catch (error: any) {
-      console.error('Error exporting students:', error);
-      return c.json({ success: false, error: 'Internal Server Error' }, 500);
-    }
-  };
-
   // GET /api/logs
   getLogs = async (c: Context) => {
     return c.json({ success: true, count: 0, data: [] });
@@ -132,6 +166,95 @@ export class DashboardController {
   // PUT /api/logs/:id/status
   updateLogStatus = async (c: Context) => {
     return c.json({ success: true, message: 'Log status updated successfully' });
+  };
+
+  // GET /api/dashboard/students - Get students formatted for dashboard table
+  getStudentsForDashboard = async (c: Context) => {
+    try {
+      const filters = c.req.query();
+      const students = await dashboardService.getStudentsForDashboard(filters);
+      return c.json({
+        success: true,
+        count: students.length,
+        data: students
+      });
+    } catch (error: any) {
+      console.error('Error fetching students for dashboard:', error);
+      return c.json({ success: false, error: 'Internal Server Error' }, 500);
+    }
+  };
+
+  // GET /api/dashboard/student-management - Get student management statistics
+  getStudentManagementStats = async (c: Context) => {
+    try {
+      const stats = await dashboardService.getStudentManagementStats();
+      return c.json({
+        success: true,
+        data: stats
+      });
+    } catch (error: any) {
+      console.error('Error fetching student management stats:', error);
+      return c.json({ success: false, error: 'Internal Server Error' }, 500);
+    }
+  };
+
+  // GET /api/dashboard/search - Search students by keyword
+  searchStudents = async (c: Context) => {
+    try {
+      const keyword = c.req.query('q') || c.req.query('keyword') || '';
+      const filters = c.req.query();
+      
+      if (!keyword.trim()) {
+        return c.json({ success: false, error: 'Keyword is required for search' }, 400);
+      }
+
+      const students = await dashboardService.searchStudents(keyword, filters);
+      return c.json({
+        success: true,
+        count: students.length,
+        keyword: keyword,
+        data: students
+      });
+    } catch (error: any) {
+      console.error('Error searching students:', error);
+      return c.json({ success: false, error: 'Internal Server Error' }, 500);
+    }
+  };
+
+  // GET /api/dashboard/export - Export students to XLSX format
+  exportStudents = async (c: Context) => {
+    try {
+      const filters = c.req.query();
+      const format = (c.req.query('format') || 'xlsx').toLowerCase();
+      
+      const students = await dashboardService.getStudentsForExport(filters);
+      
+      if (format === 'xlsx') {
+        // Generate XLSX content
+        const xlsxData = dashboardService.generateXLSX(students);
+        c.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        c.header('Content-Disposition', `attachment; filename=Students_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+        return c.body(xlsxData);
+      } else if (format === 'csv') {
+        // Generate CSV content
+        const csv = dashboardService.generateCSV(students);
+        c.header('Content-Type', 'text/csv');
+        c.header('Content-Disposition', `attachment; filename=Students_Export_${new Date().toISOString().split('T')[0]}.csv`);
+        return c.text(csv);
+      } else {
+        // Return JSON
+        return c.json({ 
+          success: true, 
+          count: students.length, 
+          exportedAt: new Date().toISOString(),
+          format: format,
+          data: students 
+        });
+      }
+    } catch (error: any) {
+      console.error('Error exporting students:', error);
+      return c.json({ success: false, error: 'Internal Server Error' }, 500);
+    }
   };
 }
 

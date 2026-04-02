@@ -107,6 +107,20 @@ export class DashboardRepository {
     return data;
   }
 
+  async getUniversityByStudentId(studentId: string): Promise<University> {
+    const query = `
+      SELECT u.UniversityID as id, u.UniversityName as name
+      FROM Universities u
+      JOIN Students s ON u.UniversityID = s.UniversityID
+      WHERE s.StudentID = ? AND s.IsActive = 1
+    `;
+    const data = await databaseService.executeQuery(query, [studentId]);
+    if (data.length === 0) {
+      throw new Error('Student not found');
+    }
+    return data[0];
+  }
+
   async getAllPrograms(): Promise<Program[]> {
     const query = `
       SELECT p.ProgramID as id, p.ProgramName as name, COUNT(s.StudentID) as studentCount
@@ -116,6 +130,20 @@ export class DashboardRepository {
     `;
     const data = await databaseService.executeQuery(query);
     return data;
+  }
+
+  async getProgramByStudentId(studentId: string): Promise<Program> {
+    const query = `
+      SELECT p.ProgramID as id, p.ProgramName as name
+      FROM Programs p
+      JOIN Students s ON p.ProgramID = s.ProgramID
+      WHERE s.StudentID = ? AND s.IsActive = 1
+    `;
+    const data = await databaseService.executeQuery(query, [studentId]);
+    if (data.length === 0) {
+      throw new Error('Student not found');
+    }
+    return data[0];
   }
 
   async getActiveInterventions(): Promise<Intervention[]> {
@@ -188,6 +216,329 @@ export class DashboardRepository {
       WHERE IsActive = 1
     `;
     return databaseService.executeQuery(query);
+  }
+
+  async getRiskLevelByStudentId(studentId: string): Promise<any> {
+    const query = `
+      SELECT 
+        RiskLevel as value,
+        RiskLevel as label,
+        CASE 
+          WHEN RiskLevel = 'Safe' THEN 'Student is performing well with no concerns'
+          WHEN RiskLevel = 'At Risk' THEN 'Student requires monitoring and preventive support'
+          WHEN RiskLevel = 'Critical' THEN 'Student requires immediate intervention and support'
+          ELSE 'Unknown risk level'
+        END as description,
+        CASE 
+          WHEN RiskLevel = 'Safe' THEN '#10B981'
+          WHEN RiskLevel = 'At Risk' THEN '#F59E0B'
+          WHEN RiskLevel = 'Critical' THEN '#EF4444'
+          ELSE '#6B7280'
+        END as color
+      FROM Students
+      WHERE StudentID = ? AND IsActive = 1
+    `;
+    const data = await databaseService.executeQuery(query, [studentId]);
+    if (data.length === 0) {
+      throw new Error('Student not found');
+    }
+    return data[0];
+  }
+
+  async getStudentsForDashboard(filters: any): Promise<any[]> {
+    let query = `
+      SELECT 
+        s.StudentID as id,
+        s.StudentName as name,
+        s.StudentNumber as studentId,
+        s.ContactEmail as email,
+        u.UniversityName as university,
+        p.ProgramName as program,
+        s.YearOfStudy as year,
+        PRINTF('%.2f', s.GPA) as gpa,
+        s.RiskLevel as riskLevel,
+        CASE 
+          WHEN s.LastLoginDate IS NULL THEN 'Never'
+          ELSE datetime(s.LastLoginDate, 'localtime')
+        END as lastActivity,
+        s.CreatedAt as enrollmentDate,
+        CASE 
+          WHEN s.RiskLevel = 'Safe' THEN '#10B981'
+          WHEN s.RiskLevel = 'At Risk' THEN '#F59E0B'
+          WHEN s.RiskLevel = 'Critical' THEN '#EF4444'
+          ELSE '#6B7280'
+        END as riskColor
+      FROM Students s
+      JOIN Universities u ON s.UniversityID = u.UniversityID
+      JOIN Programs p ON s.ProgramID = p.ProgramID
+      WHERE s.IsActive = 1
+    `;
+    
+    const params: any = {};
+    
+    if (filters.university) {
+      query += ` AND u.UniversityName LIKE @university`;
+      params.university = `%${filters.university}%`;
+    }
+    
+    if (filters.program) {
+      query += ` AND p.ProgramName LIKE @program`;
+      params.program = `%${filters.program}%`;
+    }
+    
+    if (filters.riskLevel) {
+      query += ` AND s.RiskLevel = @riskLevel`;
+      params.riskLevel = filters.riskLevel;
+    }
+    
+    if (filters.year) {
+      query += ` AND s.YearOfStudy = @year`;
+      params.year = parseInt(filters.year);
+    }
+    
+    query += ` ORDER BY s.StudentName ASC`;
+    
+    const data = await databaseService.executeQuery(query, params);
+    
+    return data.map(student => ({
+      ...student,
+      displayName: student.name,
+      universityShort: this.getUniversityShortName(student.university),
+      yearDisplay: this.getYearDisplay(student.year),
+      gpaFormatted: parseFloat(student.gpa).toFixed(2),
+      riskLevelDisplay: {
+        value: student.riskLevel,
+        color: student.riskColor,
+        label: student.riskLevel
+      },
+      lastActivityFormatted: this.formatLastActivity(student.lastActivity)
+    }));
+  }
+  
+  private getUniversityShortName(universityName: string): string {
+    const shortNames: { [key: string]: string } = {
+      'University of Cape Town': 'UCT',
+      'University of the Witwatersrand': 'Wits',
+      'University of Johannesburg': 'UJ',
+      'University of KwaZulu-Natal': 'UKZN',
+      'Stellenbosch University': 'Stellenbosch',
+      'University of Pretoria': 'UP'
+    };
+    return shortNames[universityName] || universityName;
+  }
+  
+  private getYearDisplay(year: number): string {
+    const suffixes = ['th', 'st', 'nd', 'rd'];
+    const v = year % 100;
+    return year + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]) + ' Year';
+  }
+  
+  private formatLastActivity(lastActivity: string): string {
+    if (!lastActivity || lastActivity === 'Never') {
+      return 'Never';
+    }
+    
+    const now = new Date();
+    const activityDate = new Date(lastActivity);
+    const diffMs = now.getTime() - activityDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 60) {
+      return `${diffMins} minutes ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} hours ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    } else {
+      return activityDate.toLocaleDateString();
+    }
+  }
+
+  async getStudentManagementStats(): Promise<any> {
+    // Get total students
+    const totalQuery = `SELECT COUNT(*) as total FROM Students WHERE IsActive = 1`;
+    
+    // Get risk distribution
+    const riskQuery = `
+      SELECT 
+        RiskLevel,
+        COUNT(*) as count
+      FROM Students 
+      WHERE IsActive = 1 
+      GROUP BY RiskLevel
+    `;
+    
+    // Get active interventions
+    const interventionsQuery = `
+      SELECT COUNT(*) as interventions 
+      FROM SupportRequests 
+      WHERE Status IN ('Open', 'In Progress')
+    `;
+
+    const results = await Promise.all([
+      databaseService.executeQuery(totalQuery),
+      databaseService.executeQuery(riskQuery),
+      databaseService.executeQuery(interventionsQuery)
+    ]);
+
+    const total = results[0][0].total || 0;
+    const riskData = results[1];
+    const interventions = results[2][0].interventions || 0;
+
+    const riskCounts = { Safe: 0, 'At Risk': 0, Critical: 0 };
+    riskData.forEach((row: any) => {
+      riskCounts[row.RiskLevel as keyof typeof riskCounts] = row.count;
+    });
+
+    return {
+      total: total,
+      safe: riskCounts.Safe,
+      atRisk: riskCounts['At Risk'],
+      critical: riskCounts.Critical,
+      interventions: interventions
+    };
+  }
+
+  async searchStudents(keyword: string, filters: any): Promise<any[]> {
+    let query = `
+      SELECT 
+        s.StudentID as id,
+        s.StudentName as name,
+        s.StudentNumber as studentId,
+        s.ContactEmail as email,
+        u.UniversityName as university,
+        p.ProgramName as program,
+        s.YearOfStudy as year,
+        PRINTF('%.2f', s.GPA) as gpa,
+        s.RiskLevel as riskLevel,
+        CASE 
+          WHEN s.LastLoginDate IS NULL THEN 'Never'
+          ELSE datetime(s.LastLoginDate, 'localtime')
+        END as lastActivity,
+        s.CreatedAt as enrollmentDate,
+        CASE 
+          WHEN s.RiskLevel = 'Safe' THEN '#10B981'
+          WHEN s.RiskLevel = 'At Risk' THEN '#F59E0B'
+          WHEN s.RiskLevel = 'Critical' THEN '#EF4444'
+          ELSE '#6B7280'
+        END as riskColor
+      FROM Students s
+      JOIN Universities u ON s.UniversityID = u.UniversityID
+      JOIN Programs p ON s.ProgramID = p.ProgramID
+      WHERE s.IsActive = 1
+    `;
+    
+    const params: any = {};
+    
+    if (keyword && keyword.trim()) {
+      query += ` AND (
+        s.StudentName LIKE @keyword OR 
+        s.StudentNumber LIKE @keyword OR 
+        s.ContactEmail LIKE @keyword
+      )`;
+      params.keyword = `%${keyword.trim()}%`;
+    }
+    
+    if (filters.university) {
+      query += ` AND u.UniversityName = @university`;
+      params.university = filters.university;
+    }
+    
+    if (filters.program) {
+      query += ` AND p.ProgramName = @program`;
+      params.program = filters.program;
+    }
+    
+    if (filters.riskLevel) {
+      query += ` AND s.RiskLevel = @riskLevel`;
+      params.riskLevel = filters.riskLevel;
+    }
+    
+    if (filters.year) {
+      query += ` AND s.YearOfStudy = @year`;
+      params.year = parseInt(filters.year);
+    }
+    
+    query += ` ORDER BY s.StudentName ASC`;
+    
+    const data = await databaseService.executeQuery(query, params);
+    
+    return data.map(student => ({
+      ...student,
+      displayName: student.name,
+      universityShort: this.getUniversityShortName(student.university),
+      yearDisplay: this.getYearDisplay(student.year),
+      gpaFormatted: parseFloat(student.gpa).toFixed(2),
+      riskLevelDisplay: {
+        value: student.riskLevel,
+        color: student.riskColor,
+        label: student.riskLevel
+      },
+      lastActivityFormatted: this.formatLastActivity(student.lastActivity)
+    }));
+  }
+
+  async getStudentsForExport(filters: any = {}): Promise<any[]> {
+    let query = `
+      SELECT 
+        s.StudentID as id,
+        s.StudentName as name,
+        s.StudentNumber as student_number,
+        s.ContactEmail as email,
+        s.ContactPhone as phone,
+        u.UniversityName as university,
+        p.ProgramName as program,
+        s.YearOfStudy as year,
+        PRINTF('%.2f', s.GPA) as gpa,
+        s.RiskLevel as risk_level,
+        'Active' as status,
+        s.CreatedAt as enrollment_date,
+        CASE 
+          WHEN s.LastLoginDate IS NULL THEN 'Never'
+          ELSE datetime(s.LastLoginDate, 'localtime')
+        END as last_activity
+      FROM Students s
+      JOIN Universities u ON s.UniversityID = u.UniversityID
+      JOIN Programs p ON s.ProgramID = p.ProgramID
+      WHERE s.IsActive = 1
+    `;
+    
+    const params: any = {};
+    
+    if (filters.university) {
+      query += ` AND u.UniversityName = @university`;
+      params.university = filters.university;
+    }
+    
+    if (filters.program) {
+      query += ` AND p.ProgramName = @program`;
+      params.program = filters.program;
+    }
+    
+    if (filters.riskLevel) {
+      query += ` AND s.RiskLevel = @riskLevel`;
+      params.riskLevel = filters.riskLevel;
+    }
+    
+    if (filters.year) {
+      query += ` AND s.YearOfStudy = @year`;
+      params.year = parseInt(filters.year);
+    }
+    
+    if (filters.keyword && filters.keyword.trim()) {
+      query += ` AND (
+        s.StudentName LIKE @keyword OR 
+        s.StudentNumber LIKE @keyword OR 
+        s.ContactEmail LIKE @keyword
+      )`;
+      params.keyword = `%${filters.keyword.trim()}%`;
+    }
+    
+    query += ` ORDER BY s.StudentName ASC`;
+    
+    return databaseService.executeQuery(query, params);
   }
 }
 

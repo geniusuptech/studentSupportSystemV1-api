@@ -27,8 +27,16 @@ export class DashboardService {
     return dashboardRepository.getAllUniversities();
   }
 
+  async getUniversityByStudentId(studentId: string): Promise<University> {
+    return dashboardRepository.getUniversityByStudentId(studentId);
+  }
+
   async getAllPrograms(): Promise<Program[]> {
     return dashboardRepository.getAllPrograms();
+  }
+
+  async getProgramByStudentId(studentId: string): Promise<Program> {
+    return dashboardRepository.getProgramByStudentId(studentId);
   }
 
   getRiskLevels(): RiskLevel[] {
@@ -54,17 +62,20 @@ export class DashboardService {
     ];
   }
 
+  async getRiskLevelByStudentId(studentId: string): Promise<RiskLevel> {
+    return dashboardRepository.getRiskLevelByStudentId(studentId);
+  }
+
+  async getStudentsForDashboard(filters: any): Promise<any[]> {
+    return dashboardRepository.getStudentsForDashboard(filters);
+  }
+
   async getActiveInterventions(): Promise<Intervention[]> {
     return dashboardRepository.getActiveInterventions();
   }
 
   async createIntervention(data: any): Promise<Intervention> {
     return dashboardRepository.createIntervention(data);
-  }
-
-  async getStudentsForExport(): Promise<any[]> {
-    // Fetch all active students for export (D1 implementation)
-    return dashboardRepository.getAllStudentsForExport();
   }
 
   generateCSV(students: any[]): string {
@@ -101,6 +112,25 @@ export class DashboardService {
     ]);
 
     return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  }
+
+  async getStudentManagementStats(): Promise<any> {
+    return dashboardRepository.getStudentManagementStats();
+  }
+
+  async searchStudents(keyword: string, filters: any): Promise<any[]> {
+    return dashboardRepository.searchStudents(keyword, filters);
+  }
+
+  async getStudentsForExport(filters: any = {}): Promise<any[]> {
+    return dashboardRepository.getStudentsForExport(filters);
+  }
+
+  generateXLSX(students: any[]): ArrayBuffer {
+    // For now, return CSV as text since we need to implement a proper XLSX library
+    // In a real implementation, you'd use a library like xlsx or exceljs
+    const csvData = this.generateCSV(students);
+    return new TextEncoder().encode(csvData).buffer as ArrayBuffer;
   }
 }
 
