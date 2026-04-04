@@ -106,28 +106,139 @@ export class StudentsController {
         }
     };
 
-    // GET /api/students/:id/courses
-    getStudentCourses = async (c: Context) => {
-        return c.json({ success: true, data: [] });
-    };
 
-    // GET /api/students/:id/metrics
-    getStudentMetrics = async (c: Context) => {
-        return c.json({ 
-            success: true, 
-            data: {
-                attendanceRate: 95,
-                assignmentCompletion: 88,
-                averageGrade: 78,
-                wellnessScore: 82,
-                supportRequestsCount: 0
-            } 
-        });
-    };
 
     // GET /api/students/:id/assignments
     getStudentAssignments = async (c: Context) => {
-        return c.json({ success: true, data: [] });
+        try {
+            const id = c.req.param('id');
+            const query = `
+                SELECT a.*, sc.CourseName, sc.CourseCode
+                FROM StudentAssignments a
+                LEFT JOIN StudentCourses sc ON a.CourseID = sc.CourseID
+                WHERE a.StudentID = @id
+                ORDER BY a.DueDate DESC
+            `;
+            const { default: databaseService } = await import('../config/database');
+            const data = await databaseService.executeQuery(query, { id });
+            return c.json({ success: true, data });
+        } catch (error: any) {
+            return c.json({ success: true, data: [] });
+        }
+    };
+
+    // GET /api/students/:id/courses
+    getStudentCoursesData = async (c: Context) => {
+        try {
+            const id = c.req.param('id');
+            const { default: databaseService } = await import('../config/database');
+            const query = `SELECT * FROM StudentCourses WHERE StudentID = @id ORDER BY Year DESC, Semester DESC`;
+            const data = await databaseService.executeQuery(query, { id });
+            return c.json({ success: true, data });
+        } catch (error: any) {
+            return c.json({ success: true, data: [] });
+        }
+    };
+
+    // GET /api/students/:id/metrics
+    getStudentMetricsData = async (c: Context) => {
+        try {
+            const id = c.req.param('id');
+            const { default: databaseService } = await import('../config/database');
+            
+            // Try to get from StudentMetrics table first
+            const metricsQuery = `SELECT * FROM StudentMetrics WHERE StudentID = @id ORDER BY RecordedAt DESC LIMIT 1`;
+            const metrics = await databaseService.executeQuery(metricsQuery, { id });
+            
+            if (metrics.length > 0) {
+                return c.json({ success: true, data: metrics[0] });
+            }
+            
+            // Fallback: calculate from actual data
+            const supportQuery = `SELECT COUNT(*) as count FROM SupportRequests WHERE StudentID = @id`;
+            const supportData = await databaseService.executeQuery(supportQuery, { id });
+            const coursesQuery = `SELECT AVG(GradePoints) as avgGrade FROM StudentCourses WHERE StudentID = @id AND Status = 'Completed'`;
+            const coursesData = await databaseService.executeQuery(coursesQuery, { id });
+            
+            return c.json({ 
+                success: true, 
+                data: {
+                    attendanceRate: 0,
+                    assignmentCompletion: 0,
+                    averageGrade: coursesData[0]?.avgGrade || 0,
+                    wellnessScore: 0,
+                    supportRequestsCount: supportData[0]?.count || 0
+                } 
+            });
+        } catch (error: any) {
+            return c.json({ 
+                success: true, 
+                data: { attendanceRate: 0, assignmentCompletion: 0, averageGrade: 0, wellnessScore: 0, supportRequestsCount: 0 } 
+            });
+        }
+    };
+
+    // POST /api/students - Create a new student
+    createStudent = async (c: Context) => {
+        try {
+            const body = await c.req.json();
+            if (!body.name && !body.firstName) {
+                return c.json({ success: false, error: 'Student name is required' }, 400);
+            }
+            if (!body.email && !body.contactEmail) {
+                return c.json({ success: false, error: 'Email is required' }, 400);
+            }
+            if (!body.universityId) {
+                return c.json({ success: false, error: 'University ID is required' }, 400);
+            }
+            if (!body.programId) {
+                return c.json({ success: false, error: 'Program ID is required' }, 400);
+            }
+            if (!body.studentNumber && !body.studentId) {
+                return c.json({ success: false, error: 'Student number is required' }, 400);
+            }
+
+            const student = await studentsService.createStudent(body);
+            return c.json({ success: true, message: 'Student created successfully', data: student }, 201);
+        } catch (error: any) {
+            console.error('Error creating student:', error);
+            return c.json({ success: false, error: error.message || 'Internal Server Error' }, 500);
+        }
+    };
+
+    // PUT /api/students/:id - Update student
+    updateStudent = async (c: Context) => {
+        try {
+            const id = c.req.param('id');
+            if (!id) return c.json({ error: 'Invalid student ID' }, 400);
+
+            const body = await c.req.json();
+            const student = await studentsService.updateStudent(id, body);
+            return c.json({ success: true, message: 'Student updated successfully', data: student });
+        } catch (error: any) {
+            if (error.message === 'Student not found') {
+                return c.json({ error: 'Student not found' }, 404);
+            }
+            console.error('Error updating student:', error);
+            return c.json({ success: false, error: 'Internal Server Error' }, 500);
+        }
+    };
+
+    // DELETE /api/students/:id - Delete (soft delete) student
+    deleteStudent = async (c: Context) => {
+        try {
+            const id = c.req.param('id');
+            if (!id) return c.json({ error: 'Invalid student ID' }, 400);
+
+            await studentsService.deleteStudent(id);
+            return c.json({ success: true, message: 'Student deactivated successfully' });
+        } catch (error: any) {
+            if (error.message === 'Student not found') {
+                return c.json({ error: 'Student not found' }, 404);
+            }
+            console.error('Error deleting student:', error);
+            return c.json({ success: false, error: 'Internal Server Error' }, 500);
+        }
     };
 }
 

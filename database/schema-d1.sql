@@ -156,6 +156,164 @@ CREATE TABLE IF NOT EXISTS Users (
     UNIQUE(Email, UserType)
 );
 
+-- Messages table for coordinator-student-partner communications
+CREATE TABLE IF NOT EXISTS Messages (
+    MessageID INTEGER PRIMARY KEY AUTOINCREMENT,
+    SenderType TEXT NOT NULL CHECK (SenderType IN ('student', 'coordinator', 'partner')),
+    SenderID INTEGER NOT NULL,
+    RecipientType TEXT NOT NULL CHECK (RecipientType IN ('student', 'coordinator', 'partner')),
+    RecipientID INTEGER NOT NULL,
+    Content TEXT NOT NULL,
+    IsRead INTEGER NOT NULL DEFAULT 0,
+    AttachmentURL TEXT,
+    FileName TEXT,
+    FileType TEXT,
+    FileSize INTEGER,
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+-- Interventions table for tracking student interventions
+CREATE TABLE IF NOT EXISTS Interventions (
+    InterventionID INTEGER PRIMARY KEY AUTOINCREMENT,
+    StudentID INTEGER NOT NULL,
+    CoordinatorID INTEGER,
+    Type TEXT NOT NULL,
+    Notes TEXT,
+    Status TEXT NOT NULL DEFAULT 'Active' CHECK (Status IN ('Active', 'Completed', 'Cancelled', 'Pending')),
+    Priority TEXT NOT NULL DEFAULT 'Medium' CHECK (Priority IN ('Low', 'Medium', 'High', 'Critical')),
+    FollowUpDate TEXT,
+    CompletedAt TEXT,
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    UpdatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
+    FOREIGN KEY (CoordinatorID) REFERENCES Coordinators(CoordinatorID)
+);
+
+-- Activity Logs table for tracking all system activities
+CREATE TABLE IF NOT EXISTS ActivityLogs (
+    LogID INTEGER PRIMARY KEY AUTOINCREMENT,
+    UserType TEXT NOT NULL,
+    UserID INTEGER NOT NULL,
+    Action TEXT NOT NULL,
+    EntityType TEXT,
+    EntityID INTEGER,
+    Details TEXT,
+    IPAddress TEXT,
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+-- Notifications table
+CREATE TABLE IF NOT EXISTS Notifications (
+    NotificationID INTEGER PRIMARY KEY AUTOINCREMENT,
+    UserType TEXT NOT NULL,
+    UserID INTEGER NOT NULL,
+    Title TEXT NOT NULL,
+    Message TEXT NOT NULL,
+    Type TEXT NOT NULL DEFAULT 'info' CHECK (Type IN ('info', 'warning', 'error', 'success')),
+    IsRead INTEGER NOT NULL DEFAULT 0,
+    Link TEXT,
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+-- Student Courses table
+CREATE TABLE IF NOT EXISTS StudentCourses (
+    CourseID INTEGER PRIMARY KEY AUTOINCREMENT,
+    StudentID INTEGER NOT NULL,
+    CourseName TEXT NOT NULL,
+    CourseCode TEXT NOT NULL,
+    Instructor TEXT,
+    Credits INTEGER DEFAULT 0,
+    Grade TEXT,
+    GradePoints REAL,
+    Semester TEXT,
+    Year INTEGER,
+    Status TEXT DEFAULT 'In Progress' CHECK (Status IN ('In Progress', 'Completed', 'Withdrawn', 'Failed')),
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID)
+);
+
+-- Student Assignments table
+CREATE TABLE IF NOT EXISTS StudentAssignments (
+    AssignmentID INTEGER PRIMARY KEY AUTOINCREMENT,
+    StudentID INTEGER NOT NULL,
+    CourseID INTEGER,
+    Title TEXT NOT NULL,
+    Description TEXT,
+    DueDate TEXT,
+    SubmittedDate TEXT,
+    Grade REAL,
+    MaxGrade REAL DEFAULT 100,
+    Status TEXT DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Submitted', 'Graded', 'Late', 'Missing')),
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
+    FOREIGN KEY (CourseID) REFERENCES StudentCourses(CourseID)
+);
+
+-- Student Metrics table for tracking wellness and academic metrics over time
+CREATE TABLE IF NOT EXISTS StudentMetrics (
+    MetricID INTEGER PRIMARY KEY AUTOINCREMENT,
+    StudentID INTEGER NOT NULL,
+    AttendanceRate REAL DEFAULT 0,
+    AssignmentCompletion REAL DEFAULT 0,
+    AverageGrade REAL DEFAULT 0,
+    WellnessScore REAL DEFAULT 0,
+    SupportRequestsCount INTEGER DEFAULT 0,
+    RecordedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID)
+);
+
+-- Student Schedule table
+CREATE TABLE IF NOT EXISTS StudentSchedule (
+    ScheduleID INTEGER PRIMARY KEY AUTOINCREMENT,
+    StudentID INTEGER NOT NULL,
+    CourseID INTEGER,
+    Title TEXT NOT NULL,
+    Description TEXT,
+    DayOfWeek TEXT NOT NULL CHECK (DayOfWeek IN ('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')),
+    StartTime TEXT NOT NULL,
+    EndTime TEXT NOT NULL,
+    Location TEXT,
+    Instructor TEXT,
+    Type TEXT DEFAULT 'Lecture' CHECK (Type IN ('Lecture','Tutorial','Lab','Exam','Other')),
+    IsRecurring INTEGER DEFAULT 1,
+    EventDate TEXT,
+    Semester TEXT,
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
+    FOREIGN KEY (CourseID) REFERENCES StudentCourses(CourseID)
+);
+
+-- Student Settings / Preferences table
+CREATE TABLE IF NOT EXISTS StudentSettings (
+    SettingID INTEGER PRIMARY KEY AUTOINCREMENT,
+    StudentID INTEGER NOT NULL UNIQUE,
+    Theme TEXT DEFAULT 'light' CHECK (Theme IN ('light','dark','system')),
+    Language TEXT DEFAULT 'en',
+    EmailNotifications INTEGER DEFAULT 1,
+    PushNotifications INTEGER DEFAULT 1,
+    SMSNotifications INTEGER DEFAULT 0,
+    ShowProfilePublic INTEGER DEFAULT 0,
+    ShowGPA INTEGER DEFAULT 0,
+    ShowCourses INTEGER DEFAULT 0,
+    TwoFactorEnabled INTEGER DEFAULT 0,
+    PreferredContactMethod TEXT DEFAULT 'Email',
+    UpdatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID)
+);
+
+-- Student Wellness Check-ins table (for tracking wellness over time)
+CREATE TABLE IF NOT EXISTS StudentWellnessCheckins (
+    CheckinID INTEGER PRIMARY KEY AUTOINCREMENT,
+    StudentID INTEGER NOT NULL,
+    MoodScore INTEGER CHECK (MoodScore BETWEEN 1 AND 10),
+    StressLevel INTEGER CHECK (StressLevel BETWEEN 1 AND 10),
+    SleepHours REAL,
+    ExerciseMinutes INTEGER DEFAULT 0,
+    Notes TEXT,
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID)
+);
+
 -- Views for queries
 CREATE VIEW IF NOT EXISTS vw_StudentDetails AS
 SELECT s.*, u.UniversityName, p.ProgramName

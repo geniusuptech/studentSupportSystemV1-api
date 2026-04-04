@@ -112,6 +112,22 @@ export class StudentsService {
       updatedAt: updatedAt
     };
   }
+
+  async createStudent(data: any): Promise<Student> {
+    return studentsRepository.createStudent(data);
+  }
+
+  async updateStudent(id: string | number, data: any): Promise<Student | null> {
+    const existing = await studentsRepository.getStudentById(id);
+    if (!existing) throw new Error('Student not found');
+    return studentsRepository.updateStudent(id, data);
+  }
+
+  async deleteStudent(id: string | number): Promise<void> {
+    const existing = await studentsRepository.getStudentById(id);
+    if (!existing) throw new Error('Student not found');
+    await studentsRepository.deleteStudent(id);
+  }
 }
 
 export const studentsService = new StudentsService();

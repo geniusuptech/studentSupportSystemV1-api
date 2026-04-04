@@ -59,7 +59,7 @@ foreach ($user in $allUsers) {
     } | ConvertTo-Json
     
     try {
-        $response = Invoke-RestMethod -Uri "http://localhost:8787/api/auth/update-password" -Method POST -Body $passwordData -ContentType "application/json" -TimeoutSec 30
+        $response = Invoke-RestMethod -Uri "http://127.0.0.1:8788/api/auth/update-password" -Method POST -Body $passwordData -ContentType "application/json" -TimeoutSec 30
         Write-Host " ✅ SUCCESS" -ForegroundColor Green
         $successCount++
         $results += [PSCustomObject]@{
@@ -114,7 +114,7 @@ foreach ($testUser in $testUsers) {
     
     Write-Host "Testing $($testUser.Name)..." -NoNewline
     try {
-        $loginResponse = Invoke-RestMethod -Uri "http://localhost:8787/api/auth/login" -Method POST -Body $loginData -ContentType "application/json" -TimeoutSec 15
+        $loginResponse = Invoke-RestMethod -Uri "http://127.0.0.1:8788/api/auth/login" -Method POST -Body $loginData -ContentType "application/json" -TimeoutSec 15
         Write-Host " ✅ LOGIN SUCCESS" -ForegroundColor Green
     } catch {
         Write-Host " ❌ LOGIN FAILED" -ForegroundColor Red

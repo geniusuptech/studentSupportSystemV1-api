@@ -16,6 +16,10 @@ import interventionsRoutes from './routes/interventions';
 import reportsRoutes from './routes/reports';
 import messagesRoutes from './routes/messages';
 import logsRoutes from './routes/logs';
+import coordinatorsRoutes from './routes/coordinators';
+import notificationsRoutes from './routes/notifications';
+import studentPortalRoutes from './routes/student-portal';
+import studentAuthRoutes from './routes/studentAuth';
 
 // Import services and config
 import { swaggerSpec } from './config/swagger';
@@ -117,9 +121,9 @@ app.get('/api-docs.json', (c) => {
 });
 
 // Register API Routes - Standard /api prefix
-// REMOVED: app.route('/api/students/auth', studentAuthRoutes); - Now using unified /api/auth for all user types
 app.route('/api/students', studentsRoutes);
 app.route('/api/auth', authRoutes); // Unified auth endpoint for all user types (students, coordinators, partners)
+app.route('/api/students/auth', studentAuthRoutes); // Student-specific auth (login, verify, me)
 app.route('/api/support-requests', supportRequestsRoutes);
 app.route('/api/partners', partnersRoutes);
 app.route('/api/dashboard', dashboardRoutes);
@@ -130,6 +134,9 @@ app.route('/api/interventions', interventionsRoutes);
 app.route('/api/reports', reportsRoutes);
 app.route('/api/messages', messagesRoutes);
 app.route('/api/logs', logsRoutes);
+app.route('/api/coordinators', coordinatorsRoutes);
+app.route('/api/notifications', notificationsRoutes);
+app.route('/api/student-portal', studentPortalRoutes);
 
 // Register API Routes - Root level aliases for Frontend Compatibility  
 app.route('/students', studentsRoutes);
@@ -143,6 +150,9 @@ app.route('/interventions', interventionsRoutes);
 app.route('/reports', reportsRoutes);
 app.route('/messages', messagesRoutes);
 app.route('/logs', logsRoutes);
+app.route('/coordinators', coordinatorsRoutes);
+app.route('/notifications', notificationsRoutes);
+app.route('/student-portal', studentPortalRoutes);
 
 // Global Error Handler
 app.onError((err, c) => {

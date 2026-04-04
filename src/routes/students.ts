@@ -65,12 +65,21 @@ router.put('/:id/risk', (c) => studentsController.updateStudentRiskLevel(c));
 router.get('/:id', (c) => studentsController.getStudentById(c));
 
 // GET /api/students/:id/courses
-router.get('/:id/courses', (c) => studentsController.getStudentCourses(c));
+router.get('/:id/courses', (c) => studentsController.getStudentCoursesData(c));
 
 // GET /api/students/:id/metrics
-router.get('/:id/metrics', (c) => studentsController.getStudentMetrics(c));
+router.get('/:id/metrics', (c) => studentsController.getStudentMetricsData(c));
 
 // GET /api/students/:id/assignments
 router.get('/:id/assignments', (c) => studentsController.getStudentAssignments(c));
+
+// POST /api/students - Create a new student
+router.post('/', (c) => studentsController.createStudent(c));
+
+// PUT /api/students/:id - Update student
+router.put('/:id', (c) => studentsController.updateStudent(c));
+
+// DELETE /api/students/:id - Delete student (soft delete)
+router.delete('/:id', (c) => studentsController.deleteStudent(c));
 
 export default router;

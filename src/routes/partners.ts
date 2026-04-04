@@ -73,4 +73,50 @@ router.get('/:id', async (c) => {
     }
 });
 
+// POST /api/partners - Create a new partner
+router.post('/', async (c) => {
+    try {
+        const body = await c.req.json();
+        if (!body.name && !body.partnerName) {
+            return c.json({ success: false, message: 'Partner name is required' }, 400);
+        }
+        if (!body.email && !body.contactEmail) {
+            return c.json({ success: false, message: 'Contact email is required' }, 400);
+        }
+        const partner = await partnersRepository.createPartner(body);
+        return c.json({ success: true, message: 'Partner created successfully', data: partner }, 201);
+    } catch (error: any) {
+        console.error('Error creating partner:', error);
+        return c.json({ success: false, message: 'Failed to create partner', error: error.message }, 500);
+    }
+});
+
+// PUT /api/partners/:id - Update partner
+router.put('/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const body = await c.req.json();
+        const partner = await partnersRepository.updatePartner(id, body);
+        if (!partner) return c.json({ error: 'Partner not found' }, 404);
+        return c.json({ success: true, message: 'Partner updated successfully', data: partner });
+    } catch (error: any) {
+        console.error('Error updating partner:', error);
+        return c.json({ success: false, message: 'Failed to update partner' }, 500);
+    }
+});
+
+// DELETE /api/partners/:id - Delete (deactivate) partner
+router.delete('/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const existing = await partnersRepository.getPartnerById(id);
+        if (!existing) return c.json({ error: 'Partner not found' }, 404);
+        await partnersRepository.deletePartner(id);
+        return c.json({ success: true, message: 'Partner deactivated successfully' });
+    } catch (error: any) {
+        console.error('Error deleting partner:', error);
+        return c.json({ success: false, message: 'Failed to delete partner' }, 500);
+    }
+});
+
 export default router;

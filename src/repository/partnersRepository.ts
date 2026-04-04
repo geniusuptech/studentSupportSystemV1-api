@@ -148,6 +148,68 @@ export class PartnersRepository {
         recentRequests: recent
     };
   }
+
+  async createPartner(data: any): Promise<Partner> {
+    const query = `
+      INSERT INTO Partners (
+        PartnerName, PartnerType, Specialization, ContactEmail, ContactPhone,
+        IsAvailable, MaxCapacity, CurrentWorkload, Rating, YearsOfExperience,
+        HourlyRate, Location, Bio, CreatedAt, UpdatedAt
+      ) VALUES (
+        @name, @type, @specialization, @email, @phone,
+        @isAvailable, @maxCapacity, 0, 0, @experience,
+        @hourlyRate, @location, @bio, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      )
+      RETURNING *
+    `;
+    const params = {
+      name: data.name || data.partnerName,
+      type: data.type || data.partnerType || 'Individual',
+      specialization: data.specialization || null,
+      email: data.email || data.contactEmail,
+      phone: data.phone || data.contactPhone || null,
+      isAvailable: data.isAvailable !== undefined ? (data.isAvailable ? 1 : 0) : 1,
+      maxCapacity: data.maxCapacity || 10,
+      experience: data.yearsOfExperience || data.experience || 0,
+      hourlyRate: data.hourlyRate || data.defaultRate || null,
+      location: data.location || null,
+      bio: data.bio || null
+    };
+
+    const result = await databaseService.executeQuery(query, params);
+    return this.mapPartner(result[0]);
+  }
+
+  async updatePartner(id: string | number, data: any): Promise<Partner | null> {
+    const fields: string[] = [];
+    const params: any = { id };
+
+    if (data.name !== undefined || data.partnerName !== undefined) { fields.push('PartnerName = @name'); params.name = data.name || data.partnerName; }
+    if (data.type !== undefined || data.partnerType !== undefined) { fields.push('PartnerType = @type'); params.type = data.type || data.partnerType; }
+    if (data.specialization !== undefined) { fields.push('Specialization = @specialization'); params.specialization = data.specialization; }
+    if (data.email !== undefined || data.contactEmail !== undefined) { fields.push('ContactEmail = @email'); params.email = data.email || data.contactEmail; }
+    if (data.phone !== undefined || data.contactPhone !== undefined) { fields.push('ContactPhone = @phone'); params.phone = data.phone || data.contactPhone; }
+    if (data.isAvailable !== undefined) { fields.push('IsAvailable = @isAvailable'); params.isAvailable = data.isAvailable ? 1 : 0; }
+    if (data.maxCapacity !== undefined) { fields.push('MaxCapacity = @maxCapacity'); params.maxCapacity = data.maxCapacity; }
+    if (data.hourlyRate !== undefined) { fields.push('HourlyRate = @hourlyRate'); params.hourlyRate = data.hourlyRate; }
+    if (data.location !== undefined) { fields.push('Location = @location'); params.location = data.location; }
+    if (data.bio !== undefined) { fields.push('Bio = @bio'); params.bio = data.bio; }
+    if (data.yearsOfExperience !== undefined) { fields.push('YearsOfExperience = @experience'); params.experience = data.yearsOfExperience; }
+    if (data.rating !== undefined) { fields.push('Rating = @rating'); params.rating = data.rating; }
+
+    if (fields.length === 0) return this.getPartnerById(id);
+
+    fields.push('UpdatedAt = CURRENT_TIMESTAMP');
+    const query = `UPDATE Partners SET ${fields.join(', ')} WHERE PartnerID = @id`;
+    await databaseService.executeQuery(query, params);
+    return this.getPartnerById(id);
+  }
+
+  async deletePartner(id: string | number): Promise<void> {
+    // Soft delete by marking as unavailable
+    const query = `UPDATE Partners SET IsAvailable = 0, UpdatedAt = CURRENT_TIMESTAMP WHERE PartnerID = @id`;
+    await databaseService.executeQuery(query, { id });
+  }
 }
 
 export const partnersRepository = new PartnersRepository();
