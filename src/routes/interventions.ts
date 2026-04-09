@@ -7,10 +7,25 @@ const router = new Hono();
 router.post('/', async (c) => {
     try {
         const body = await c.req.json();
-        if (!body.studentId || !body.type) {
-            return c.json({ success: false, error: 'Validation Error', message: 'studentId and type are required' }, 400);
+        if (!body.studentID && !body.studentId) {
+            return c.json({ success: false, error: 'Validation Error', message: 'studentID is required' }, 400);
         }
-        const intervention = await interventionsRepository.createIntervention(body);
+        if (!body.type) {
+            return c.json({ success: false, error: 'Validation Error', message: 'type is required' }, 400);
+        }
+        // Normalize field names (camelCase or PascalCase)
+        const normalizedBody = {
+            studentId: body.studentID || body.studentId,
+            coordinatorId: body.coordinatorID || body.cordiantorID || body.coordinatorId,
+            type: body.type,
+            interventionType: body.interventionType,
+            riskLevel: body.riskLevel,
+            priority: body.priority,
+            followUpDate: body.followUpDate,
+            notes: body.notes,
+            status: body.status
+        };
+        const intervention = await interventionsRepository.createIntervention(normalizedBody);
         return c.json({ success: true, message: 'Intervention created successfully', data: intervention }, 201);
     } catch (error: any) {
         console.error('Error creating intervention:', error);

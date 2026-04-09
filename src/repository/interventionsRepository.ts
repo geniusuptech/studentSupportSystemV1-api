@@ -7,6 +7,9 @@ export interface Intervention {
     coordinatorId?: number;
     coordinatorName?: string;
     type: string;
+    interventionTypeId?: number;
+    interventionType?: string;
+    riskLevel?: string;
     notes?: string;
     status: string;
     priority: string;
@@ -96,14 +99,15 @@ export class InterventionsRepository {
 
     async createIntervention(data: any): Promise<Intervention> {
         const query = `
-            INSERT INTO Interventions (StudentID, CoordinatorID, Type, Notes, Status, Priority, FollowUpDate, CreatedAt, UpdatedAt)
-            VALUES (@studentId, @coordinatorId, @type, @notes, @status, @priority, @followUpDate, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO Interventions (StudentID, CoordinatorID, Type, InterventionTypeID, Notes, Status, Priority, FollowUpDate, CreatedAt, UpdatedAt)
+            VALUES (@studentId, @coordinatorId, @type, @interventionTypeId, @notes, @status, @priority, @followUpDate, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING *
         `;
         const params = {
             studentId: data.studentId,
             coordinatorId: data.coordinatorId || null,
             type: data.type,
+            interventionTypeId: data.interventionType || null,
             notes: data.notes || null,
             status: data.status || 'Active',
             priority: data.priority || data.riskLevel || 'Medium',

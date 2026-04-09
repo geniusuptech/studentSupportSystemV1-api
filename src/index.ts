@@ -36,7 +36,9 @@ const app = new Hono<{ Bindings: Bindings }>();
 // Middlewares
 app.use('*', logger());
 app.use('*', cors({
-  origin: '*', 
+  origin: (origin) => origin || '*',
+  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   credentials: true,
 }));
 
@@ -61,7 +63,9 @@ app.get('/api/health', (c) => {
     platform: 'Cloudflare Workers (Hono)',
     version: '1.2.0',
     dbConfigured: databaseService.isConfigured(),
-    jwtConfigured: !!c.env.JWT_SECRET
+    jwtConfigured: !!c.env.JWT_SECRET,
+    jwtSecretLength: c.env.JWT_SECRET ? c.env.JWT_SECRET.length : 0,
+    jwtSecretFirstChars: c.env.JWT_SECRET ? c.env.JWT_SECRET.substring(0, 30) + '...' : 'NOT SET'
   });
 });
 
@@ -74,8 +78,27 @@ app.get('/', (c) => {
     version: '1.2.0',
     documentation: '/api-docs',
     health: '/api/health',
-
+    diagnostics: '/api/diagnostics',
     status: 'Ready'
+  });
+});
+
+// Diagnostic endpoint - helps debug JWT and token issues
+app.get('/api/diagnostics', (c) => {
+  const authHeader = c.req.header('authorization');
+  const tokenFromHeader = authHeader ? authHeader.split(' ')[1] : null;
+  const jwtSecret = c.env.JWT_SECRET;
+  
+  return c.json({
+    jwt_configured: !!jwtSecret,
+    jwt_secret_length: jwtSecret ? jwtSecret.length : 0,
+    jwt_secret_start: jwtSecret ? jwtSecret.substring(0, 40) + '...' : 'NOT SET',
+    authorization_header_present: !!authHeader,
+    token_in_header: !!tokenFromHeader,
+    token_format_valid: authHeader ? authHeader.startsWith('Bearer ') : null,
+    token_value_start: tokenFromHeader ? tokenFromHeader.substring(0, 30) + '...' : null,
+    db_configured: databaseService.isConfigured(),
+    message: 'Use this endpoint to verify JWT configuration and token format before testing protected endpoints'
   });
 });
 
@@ -106,7 +129,15 @@ app.get('/api-docs', (c) => {
             url: '/api-docs.json',
             dom_id: '#swagger-ui',
             deepLinking: true,
-            presets: [SwaggerUIBundle.presets.apis],
+            persistAuthorization: true,
+            withCredentials: true,
+            presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+            plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+            requestInterceptor: (request) => {
+              // Allow cookies to be sent with requests
+              request.credentials = 'include';
+              return request;
+            },
           });
         };
       </script>

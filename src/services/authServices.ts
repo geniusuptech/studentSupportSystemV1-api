@@ -8,6 +8,7 @@ export class AuthService {
 
     setSecret(secret: string) {
         this.secret = secret;
+        console.log('[AuthService] JWT Secret set - length:', secret.length, 'first 50 chars:', secret.substring(0, 50));
     }
 
     async login(loginData: LoginRequest): Promise<LoginResponse> {
@@ -46,6 +47,7 @@ export class AuthService {
             };
 
             const token = await sign(tokenPayload, this.secret);
+            console.log('[AuthService] Token created for user', user.id, '- Secret used (first 50 chars):', this.secret.substring(0, 50));
             await authRepository.updateLastLoginAt(user.id);
 
             return {

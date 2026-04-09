@@ -16,10 +16,12 @@ export class AuthController {
             const body = await c.req.json(); // LoginRequest: { email, password }
             const result = await authService.login(body);
             if (result.success && result.token) {
+              // Cloudflare Workers run over HTTPS - always use secure cookies
+              // sameSite: 'lax' allows the cookie to be sent with same-origin requests from the Swagger UI / browser
               setCookie(c, 'jwt', result.token, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
+                secure: true,
+                sameSite: 'lax',
                 maxAge: 60 * 60 * 24 // 24h
               });
             }
@@ -194,7 +196,7 @@ export class AuthController {
 
         if (!token) return c.json({ success: false, message: 'No token provided' }, 400);
 
-        const tokenData = authService.validateToken(token);
+        const tokenData = await authService.validateToken(token);
         if (tokenData) {
             return c.json({ success: true, user: tokenData });
         } else {

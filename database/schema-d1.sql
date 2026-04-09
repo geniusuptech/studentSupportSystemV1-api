@@ -314,6 +314,19 @@ CREATE TABLE IF NOT EXISTS StudentWellnessCheckins (
     FOREIGN KEY (StudentID) REFERENCES Students(StudentID)
 );
 
+-- Intevention Type table for standardized intervention types
+CREATE TABLE IF NOT EXISTS InterventionTypes (
+    TypeID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TypeName TEXT NOT NULL UNIQUE,
+    Description TEXT,
+    CreatedAt TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+-- Update Interventions table to reference InterventionTypes
+ALTER TABLE Interventions
+ADD COLUMN InterventionTypeID INTEGER REFERENCES InterventionTypes(TypeID);
+
+
 -- Views for queries
 CREATE VIEW IF NOT EXISTS vw_StudentDetails AS
 SELECT s.*, u.UniversityName, p.ProgramName
